@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "unicode_version": "17.0.0",
+  "license": "Unicode-3.0",
+  "files": {
+    "emoji-data.txt": {
+      "url": "https://www.unicode.org/Public/17.0.0/ucd/emoji/emoji-data.txt",
+      "sha256": "2cb2bb9455cda83e8481541ecf5b6dfda66a3bb89efa3fa7c5297eccf607b72b",
+      "bytes": 107324
+    },
+    "LICENSE.txt": {
+      "url": "https://www.unicode.org/license.txt",
+      "sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96",
+      "bytes": 1995
+    }
+  }
+}

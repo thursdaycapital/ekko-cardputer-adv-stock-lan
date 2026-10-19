@@ -1,0 +1,14 @@
+{
+  "name": "ekko-cardputer-avatar-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline conversion and verification of the checked-in Cardputer avatar assets",
+  "type": "module",
+  "scripts": {
+    "check": "node generate.mjs --check",
+    "generate": "node generate.mjs"
+  },
+  "dependencies": {
+    "sharp": "0.35.3"
+  }
+}

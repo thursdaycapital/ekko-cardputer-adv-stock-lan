@@ -1,0 +1,7 @@
+{
+  "checkedAtUtc": "2026-10-19T09:20:59.112941+00:00",
+  "currentOfficialAppVersion": "0.7.37",
+  "modelApiHttp": 200,
+  "selectedDefaultMatchesUserApproved": true,
+  "earlierProbeNote": "GET config/model is not the official read endpoint and returned 404; available-models is the actual firmware endpoint and returned 200. No configuration changed."
+}

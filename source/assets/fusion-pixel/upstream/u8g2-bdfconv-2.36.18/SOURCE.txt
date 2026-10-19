@@ -1,0 +1,6 @@
+Official u8g2 2.36.18
+Commit: d66b49af3e48cd0becf95f862353bf94a9c0c2be
+Source path: tools/font/bdfconv
+https://github.com/olikraus/u8g2/tree/d66b49af3e48cd0becf95f862353bf94a9c0c2be/tools/font/bdfconv
+All .c/.h files and Makefile copied unmodified from official tag.
+Build: make CFLAGS='-O3 -Wall -Werror'

@@ -1,0 +1,57 @@
+{
+  "tag_name": "2026.09.01",
+  "target_commitish": "master",
+  "published_at": "2026-09-01T11:42:21Z",
+  "html_url": "https://github.com/TakWolf/fusion-pixel-font/releases/tag/2026.09.01",
+  "asset": {
+    "name": "fusion-pixel-font-12px-monospaced-bdf-v2026.09.01.zip",
+    "id": 539477852,
+    "size": 25758969,
+    "digest": "sha256:5b1cac9253fa9e20b9fea5fd582eeed985819a3ce4b7f7fb108f8d6e599ad211",
+    "browser_download_url": "https://github.com/TakWolf/fusion-pixel-font/releases/download/2026.09.01/fusion-pixel-font-12px-monospaced-bdf-v2026.09.01.zip",
+    "updated_at": "2026-09-01T11:49:02Z",
+    "actualSha256": "5b1cac9253fa9e20b9fea5fd582eeed985819a3ce4b7f7fb108f8d6e599ad211"
+  },
+  "sourceBdf": {
+    "path": "upstream/fusion-pixel-12px-monospaced-zh_hans.bdf",
+    "sha256": "9cb8f307b8835ff071e62eaa2fd473fa0683d0ae2c5af8583eb9c5a183953f00"
+  },
+  "converter": {
+    "tag": "2.36.18",
+    "commit": "d66b49af3e48cd0becf95f862353bf94a9c0c2be",
+    "sourcePath": "tools/font/bdfconv",
+    "buildCommand": "make CFLAGS='-O3 -Wall -Werror'",
+    "upstreamSourceChanged": false,
+    "buildFlagReason": "Apple Clang rejects obsolete -O4 under -Werror, use equivalent -O3"
+  },
+  "derivedFont": {
+    "familyName": "Ekko Pixel12 Chinese Compatible",
+    "glyphs": 24025,
+    "fusionGlyphs": 23845,
+    "efontSupplementGlyphs": 180,
+    "compressedDataBytes": 654185,
+    "compressedDataSha256": "6b6ecb63da33f40e18c8839a9a9909f823886f1baa40a736f19e178a8dba9eac",
+    "glyphsRescaledOrRedrawn": false,
+    "sourceBmpExcludedRanges": [
+      "U+1100-U+11FF",
+      "U+3130-U+318F",
+      "U+A960-U+A97F",
+      "U+AC00-U+D7AF",
+      "U+D7B0-U+D7FF"
+    ],
+    "supplementaryOriginalGlyphsExcluded": 1428,
+    "unencodedOriginalNotdefExcluded": 1,
+    "reproduceInput": "EkkoPixel12Compatible.bdf",
+    "scope": "All original Fusion zh_hans BMP glyphs except five explicit Hangul blocks, plus every glyph from original efontCN_12 that is otherwise absent"
+  },
+  "efontSupplement": {
+    "officialM5gfxVersion": "0.2.33",
+    "officialM5gfxSourceUrl": "https://github.com/m5stack/M5GFX/blob/0.2.33/src/lgfx/Fonts/efont/lgfx_efont_cn.c",
+    "sourceCFileSha256": "ceb7bae98279b5b196a4742b0814970d095ddcaabea8a9ac3cebe1e1f7add873",
+    "originalFontDataBytes": 213444,
+    "originalFontDataSha256": "795a24e2dd5bc2515a3f128ff7e4ce0f930b8cf550ebb03ec1dff71d63b6002a",
+    "actualOriginalFontGlyphs": 7545,
+    "supplementGlyphs": 180,
+    "method": "Official U8g2 2.36.18 runtime decoder, original BBX/advance and rendered pixels; no scaling"
+  }
+}

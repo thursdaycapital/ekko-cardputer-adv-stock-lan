@@ -1,0 +1,38 @@
+{
+  "source_tree": "source/arduino-esp32-2.0.17",
+  "byte_identical_to_fixed_framework": 1020,
+  "missing_from_installed": [],
+  "mismatch": [
+    "libraries/WiFi/examples/WiFiClient/README.md",
+    "libraries/WiFi/examples/WiFiClient/WiFiClient.ino"
+  ],
+  "symlinks": [],
+  "expected_core_library_variant_and_build_script_missing": [],
+  "counts": {
+    "cores": 103,
+    "libraries": 589,
+    "variants": 328,
+    "tools": 1
+  },
+  "package": {
+    "name": "framework-arduinoespressif32",
+    "version": "3.20017.241212+sha.dcc1105b",
+    "description": "Arduino Wiring-based Framework for the Espressif ESP32, ESP32-S and ESP32-C series of SoCs",
+    "keywords": [
+      "framework",
+      "arduino",
+      "espressif",
+      "esp32"
+    ],
+    "license": "LGPL-2.1-or-later",
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/espressif/arduino-esp32"
+    }
+  },
+  "source_tree_sha256": "4f5cc5ac474933703dbf09cd8c378d38977638e7330629c9381a139159d616c2",
+  "snapshotFilesBeforeSupplementalLicense": 1022,
+  "supplementalLicenseAdded": "LICENSE.md",
+  "exampleDifferenceReason": "Two WiFiClient example files retain EXAMPLE_WRITE_API_KEY and EXAMPLE_READ_API_KEY placeholders instead of upstream demonstration keys. Examples are not linked into this firmware.",
+  "fixedRuntimeSourcesMatch": true
+}

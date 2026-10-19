@@ -1,0 +1,14 @@
+{
+  "checkedAtUtc": "2026-10-19T09:17:42.308482+00:00",
+  "version": "0.7.37",
+  "protectedResourcesChecked": 7809,
+  "missingProtectedCount": 0,
+  "mismatchedProtectedCount": 0,
+  "strictCodesignExit": 1,
+  "unsealedFileCount": 11,
+  "allUnsealedFilesArePythonCache": true,
+  "officialCodeResourceBytesMatch": true,
+  "cleanupPerformed": false,
+  "rawDiagnosticPrivate": true,
+  "diagnosticCaptureIncludesStdout": true
+}

@@ -1,0 +1,37 @@
+{
+  "fontToolsVersion": "4.67.0",
+  "upstream": {
+    "tag": "2026.09.01",
+    "asset": {
+      "name": "fusion-pixel-font-12px-monospaced-otf.woff2-v2026.09.01.zip",
+      "size": 3365356,
+      "digest": "sha256:ee12cdda2960a493a1f4e6c8a2712f119f7c5d1f3db6d7ce4726a5b63af8e55d",
+      "browser_download_url": "https://github.com/TakWolf/fusion-pixel-font/releases/download/2026.09.01/fusion-pixel-font-12px-monospaced-otf.woff2-v2026.09.01.zip"
+    },
+    "actualSha256": "ee12cdda2960a493a1f4e6c8a2712f119f7c5d1f3db6d7ce4726a5b63af8e55d",
+    "file": "fusion-pixel-12px-monospaced-zh_hans.otf.woff2",
+    "fontSha256": "20b6d07034cb22efbf0828f6a74acf761cf08324878327204d9e38f021fdf343"
+  },
+  "derivedFamily": "Cardputer Pixel Web",
+  "scope": "Fixed UI + ASCII + available GB2312 level-one glyphs; other user characters may use browser fallback.",
+  "glyphCodepoints": 3869,
+  "bytes": 105692,
+  "sha256": "55818900b983245627daf6ccdad8eee9a0988196b540b8d7d496654993ee8936",
+  "initialBroadSourceScanUnrenderedSymbolsAbsentFromUpstream": [
+    "U+26A0"
+  ],
+  "fixedUiNonAsciiCharacters": 379,
+  "fixedUiMissingCodepoints": [],
+  "fixedUiValidation": "tests/run_localization_tests.py excludes comments; initial broad scan included unrendered source comments",
+  "brotliVersion": "1.2.0",
+  "subsetOptions": "fontTools.subset.Options defaults in 4.67.0; populate from web/codepoints.txt",
+  "nameReplacements": {
+    "1": "Cardputer Pixel Web",
+    "3": "CardputerPixelWeb-2026.09.01-zh",
+    "4": "Cardputer Pixel Web Regular",
+    "6": "CardputerPixelWeb-Regular"
+  },
+  "headModified": 3875061243,
+  "recalcTimestamp": false,
+  "byteExactRebuildVerified": true
+}

@@ -1,0 +1,50 @@
+{
+  "scope": "Offline execution of exact tutorial write block with uvx replaced by a local call marker; no hardware or network access",
+  "shellSyntax": "all three blocks valid zsh",
+  "cases": [
+    {
+      "case": "all_valid",
+      "flashCommandReached": true,
+      "expected": true,
+      "passed": true
+    },
+    {
+      "case": "backup_not_completed",
+      "flashCommandReached": false,
+      "expected": false,
+      "passed": true
+    },
+    {
+      "case": "backup_wrong_size",
+      "flashCommandReached": false,
+      "expected": false,
+      "passed": true
+    },
+    {
+      "case": "partition_wrong_size",
+      "flashCommandReached": false,
+      "expected": false,
+      "passed": true
+    },
+    {
+      "case": "partition_wrong_hash",
+      "flashCommandReached": false,
+      "expected": false,
+      "passed": true
+    },
+    {
+      "case": "package_checksum_failed",
+      "flashCommandReached": false,
+      "expected": false,
+      "passed": true
+    },
+    {
+      "case": "missing_private_directory",
+      "flashCommandReached": false,
+      "expected": false,
+      "passed": true
+    }
+  ],
+  "temporaryFilesAutomaticallyRemoved": true,
+  "harnessNote": "Initial minimized-environment stderr decoding failed on a Chinese error message; UTF-8 locale and replacement decoding set before successful rerun. This was not a firmware or installation failure."
+}

@@ -1,0 +1,94 @@
+{
+  "scope": "Local development candidate only; no ZIP, desktop copy, GitHub push, device access, Studio service access or private-credential file reads.",
+  "source_files": 376,
+  "scan": {
+    "file_count_before_generated_inventory": 388,
+    "bytes_before_generated_inventory": 22947890,
+    "matched_categories": {
+      "private_key_header": 3,
+      "personal_home_path": 3
+    },
+    "forbidden_paths": [],
+    "symlinks": 0,
+    "jwt_api_key_assignment_temp_sqlite_and_known_device_wifi_categories": 0,
+    "reviewed_hits": [
+      {
+        "category": "private_key_header",
+        "count": 3,
+        "interpretation": "NUL-terminated parser marker literals; no PEM body immediately follows."
+      },
+      {
+        "category": "personal_home_path",
+        "count": 3,
+        "interpretation": "All three source-path literals occur in the actual linked prebuilt libc.a and do not match the current local username. Files: gmtime.c, dtoa.c, mprec.c. No local project path or credential observed."
+      }
+    ],
+    "limitation": "Finite byte-pattern/path scan, not proof that every possible secret representation is absent."
+  },
+  "source_freeze": {
+    "entries": 140,
+    "matches": 139,
+    "differences": [
+      "tests/integration/README.zh-CN.md"
+    ],
+    "difference_classification": "Root-confirmed post-build integration authentication documentation, not a firmware compilation input. Original frozen manifest retained.",
+    "build_input_entries": 75,
+    "build_input_matches": 75,
+    "config_agents_copied_verbatim": true
+  },
+  "license_snapshot": {
+    "entries": 68,
+    "exceptions": [
+      {
+        "path": "assets/avatars/README.zh-CN.md",
+        "reason": "changed_document_snapshot"
+      }
+    ],
+    "license_source_trees_complete": true,
+    "note": "Original license texts retained unchanged; source snapshot README entry predates approved tool-documentation changes."
+  },
+  "font_snapshot": {
+    "missing_by_explicit_exclusion": [
+      "evidence/bdfconv.log"
+    ],
+    "hash_mismatches": []
+  },
+  "residual_findings": [
+    {
+      "id": "CP-01",
+      "severity": "P3",
+      "confidence": "high",
+      "detail": "Original font checksum list references excluded conversion log; explicitly documented."
+    },
+    {
+      "id": "CP-02",
+      "severity": "P3",
+      "confidence": "high",
+      "detail": "Original license SOURCE-MANIFEST avatar README snapshot predates documentation edit; actual package hash is authoritative for current content."
+    },
+    {
+      "id": "CP-03",
+      "severity": "P3",
+      "confidence": "high",
+      "detail": "Frozen binary includes three prebuilt libc source path literals; not current local user paths or credentials."
+    },
+    {
+      "id": "PK-03",
+      "severity": "P2",
+      "confidence": "high",
+      "detail": "Asset-specific permissions for 15 avatar entries remain unestablished; video metadata remains private/UNLICENSED. Local candidate is not public redistribution approval."
+    },
+    {
+      "id": "PK-04",
+      "severity": "P2",
+      "confidence": "high",
+      "detail": "Final linked-section and complete corresponding-source/relink material coverage is not closed by retained license texts."
+    },
+    {
+      "id": "CP-04",
+      "severity": "P2",
+      "confidence": "high",
+      "detail": "Full five-second byte-count and mid-voice Wi-Fi-loss hardware measurements are absent; user experience confirmation and short-record telemetry are distinguished."
+    }
+  ]
+}

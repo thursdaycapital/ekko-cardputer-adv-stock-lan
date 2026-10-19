@@ -1,0 +1,108 @@
+{
+  "source_video": {
+    "filename": "Ekko-Studio-Opening-16Agents-4s-2K60.mp4",
+    "archived_copy": "source/public/source-opening.mp4",
+    "bytes": 721092,
+    "sha256": "7d03587837e13a17145a02b973026614545e3ab8142dc79e107369dba67f12fc",
+    "origin": "user-provided"
+  },
+  "remotion_version": "4.0.535",
+  "mp4": {
+    "composition": "EkkoOpeningOriginal2K60",
+    "rendered_by": "Remotion CLI/@remotion/media Video",
+    "file": "preview/ekko-boot-user-opening-4s-2k60.mp4",
+    "codec": "h264",
+    "pixel_format": "yuv420p",
+    "crf": 32,
+    "width": 2560,
+    "height": 1440,
+    "fps": 60,
+    "frames": 240,
+    "duration_ms": 4000,
+    "audio_streams": 0,
+    "bytes": 146911,
+    "sha256": "abeed31a10ae92d704da7545295d9dc560b2234fa2520020a6c088fa3fec92fc",
+    "byte_budget": 300000,
+    "ffmpeg_full_decode_exit_code": 0,
+    "source_ssim_all": 0.997683
+  },
+  "lcd": {
+    "composition": "EkkoOpeningLCD",
+    "width": 240,
+    "height": 135,
+    "fps": 15,
+    "frames": 60,
+    "duration_ms": 4000,
+    "jpeg_payload_bytes": 225401,
+    "offset_bytes": 244,
+    "embedded_bytes": 225645,
+    "embedded_budget_bytes": 300000,
+    "jpeg_quality": 95,
+    "payload_sha256": "885cabb1b5c35ba9c2005a50ee4e860f5c95fb669f0784df28452048074d6cab",
+    "all_jpeg_decode_baseline_hash_offset_validation": "passed"
+  },
+  "source_files": [
+    {
+      "path": "source/README.zh-CN.md",
+      "bytes": 3750,
+      "sha256": "2ff6fd8d3ddceb1672b836c3eb2da5d2d411ee25d0d096add3d3821296a17814"
+    },
+    {
+      "path": "source/eslint.config.mjs",
+      "bytes": 79,
+      "sha256": "7f2ca640409fd597965bedf929073b9a74f143643e1711150c4cac3b6ec5c80d"
+    },
+    {
+      "path": "source/package-lock.json",
+      "bytes": 191547,
+      "sha256": "8d240197c0fc27a4278ef431f617c3e2e073b581d49a2282c0f4799dbcc4586b"
+    },
+    {
+      "path": "source/package.json",
+      "bytes": 1102,
+      "sha256": "fb6a72697a8ab00c0144d04be7324acb51fdbc58514a375e2fe0387500dfa157"
+    },
+    {
+      "path": "source/public/source-opening.mp4",
+      "bytes": 721092,
+      "sha256": "7d03587837e13a17145a02b973026614545e3ab8142dc79e107369dba67f12fc"
+    },
+    {
+      "path": "source/remotion.config.ts",
+      "bytes": 370,
+      "sha256": "d8f696de483da06824f26d4bf4206944f3be2bb8938972900e512cc0c160ee70"
+    },
+    {
+      "path": "source/src/Composition.tsx",
+      "bytes": 1102,
+      "sha256": "877cb946316d2583a08d42725d5c56af8b942b01fe2c4813ed4eea8e1e94f759"
+    },
+    {
+      "path": "source/src/Root.tsx",
+      "bytes": 152,
+      "sha256": "7989669de8801ac90f2b40b57bbf4494c775a4fa15e556bcb4949d98fcbd6bbe"
+    },
+    {
+      "path": "source/src/index.ts",
+      "bytes": 109,
+      "sha256": "957e481dd33a29b4a55ae0e95dbf763b7e48c37c427ca4bd1275faf34bc07a74"
+    },
+    {
+      "path": "source/tsconfig.json",
+      "bytes": 368,
+      "sha256": "a6fbcf514dbfd3d116c3f7f78b72949c8c2ff45bdbe17aeff4c97e16bc1327fa"
+    }
+  ],
+  "render_environment": {
+    "browser": "Chrome Headless Shell152",
+    "concurrency": 1,
+    "first_default_browser_attempt": "Chrome157 returned Target closed; no delivered result"
+  },
+  "npm_audit": {
+    "all_high": 10,
+    "omit_dev_total": 0,
+    "affected_scope": "dev ESLint/typescript-eslint/glob/braces/micromatch",
+    "fix_force_run": false
+  },
+  "physical_boot_validation": "owned by root; not proven by these host results"
+}

@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "unicode_version": "17.0.0",
+  "header_sha256": "becddc6069797f0108b4f5920eed6bfee8c12b680f6e2a61ad329bb02cdaaa32",
+  "properties": {
+    "emojiPresentation": {
+      "codepoints": 1219,
+      "ranges": 81,
+      "data_bytes": 648
+    },
+    "emojiModifier": {
+      "codepoints": 5,
+      "ranges": 1,
+      "data_bytes": 8
+    },
+    "emojiJoinerBase": {
+      "codepoints": 1421,
+      "ranges": 149,
+      "data_bytes": 1192
+    },
+    "emojiTag": {
+      "codepoints": 96,
+      "ranges": 1,
+      "data_bytes": 8
+    }
+  },
+  "range_data_bytes": 1856
+}

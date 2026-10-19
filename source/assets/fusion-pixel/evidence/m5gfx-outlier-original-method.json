@@ -1,0 +1,7 @@
+{
+  "exitCode": 2,
+  "stderr": "U+0000 advance 6 passed\nU+0041 advance 6 passed\nU+4E2D advance 12 passed\nU+6587 advance 12 passed\ncodepoint U+3031 rect 18,18 3x65537\n",
+  "actualMethodSourceSha256": "3c1580fe70b25ab93ed0b05a7435c4d616d58a5acf5b934d830763b70301c431",
+  "nativeHeaderAndCppCompiled": true,
+  "finding": "Original M5GFX drawChar uses unsigned ly, negative native-line yoffset overflows rectangle height for original U+3031/3032; native 12px caller needs local draw metrics adjustment as well as clipping."
+}

@@ -1,0 +1,12 @@
+{
+  "pass": true,
+  "originalEfontGlyphsCompared": 180,
+  "originalBbxAndAdvanceExactAfterRecompression": true,
+  "mismatches": [],
+  "decoder": "Unmodified official U8g2 2.36.18",
+  "sanitizers": [
+    "address",
+    "undefined"
+  ],
+  "compilerWarnings": 0
+}

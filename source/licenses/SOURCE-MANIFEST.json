@@ -1,0 +1,734 @@
+{
+  "schema_version": 1,
+  "candidate": "Cardputer ADV official Studio 0.7.36 LAN compatibility development candidate",
+  "created": "2026-10-18",
+  "upstream": {
+    "repository": "https://github.com/EKKOLearnAI/ekko-studio",
+    "commit": "1242ac63556491c92ba6dd49d89fd19c91a6bdd5",
+    "npm_version": "0.7.36",
+    "root_license_sha256": "fe3e400361f80f14f5cf6024e890c05ab51600ec26d5fb2be97b24dc5868a876",
+    "license_verified_against_npm_tarball": true
+  },
+  "scope": "Source and selected third-party original notice files for this new candidate only. Not a complete final-image SBOM or a legal compatibility conclusion. No desktop patch or factory source is bundled here.",
+  "files": [
+    {
+      "component": "Ekko Studio 0.7.36",
+      "path": "licenses/ekko-studio/LICENSE",
+      "kind": "unchanged_original_text",
+      "bytes": 2650,
+      "sha256": "fe3e400361f80f14f5cf6024e890c05ab51600ec26d5fb2be97b24dc5868a876",
+      "copied_from": "verified npm ekko-studio@0.7.36 package/LICENSE"
+    },
+    {
+      "component": "M5Unified",
+      "path": "licenses/libraries/M5Unified/LICENSE",
+      "kind": "unchanged_original_text",
+      "bytes": 1063,
+      "sha256": "44611d917bece311f5c8eeffce83d8bf9e9ca3f815d262f694ff4a7996af50ea",
+      "copied_from": "build-resolved .pio/libdeps/cardputer-adv/M5Unified/LICENSE"
+    },
+    {
+      "component": "M5Unified",
+      "path": "licenses/libraries/M5Unified/library.json",
+      "kind": "unchanged_version_manifest",
+      "bytes": 656,
+      "sha256": "ab6d64af2939bc74204daef59e90c9fcdc520d3acb64c22616518211067ea361",
+      "copied_from": "build-resolved .pio/libdeps/cardputer-adv/M5Unified/library.json"
+    },
+    {
+      "component": "M5GFX",
+      "path": "licenses/libraries/M5GFX/LICENSE",
+      "kind": "unchanged_original_text",
+      "bytes": 1064,
+      "sha256": "2076614535b2a8ea22d46dc9c5469a924e1a726e9d81a7cb2723a5e9833fe7a3",
+      "copied_from": "build-resolved .pio/libdeps/cardputer-adv/M5GFX/LICENSE"
+    },
+    {
+      "component": "M5GFX",
+      "path": "licenses/libraries/M5GFX/library.json",
+      "kind": "unchanged_version_manifest",
+      "bytes": 549,
+      "sha256": "70e634a79de5c7a9df5d876d9094e9eec9f06ebf6677c298b9a6242753fadc1d",
+      "copied_from": "build-resolved .pio/libdeps/cardputer-adv/M5GFX/library.json"
+    },
+    {
+      "component": "ArduinoJson",
+      "path": "licenses/libraries/ArduinoJson/LICENSE.txt",
+      "kind": "unchanged_original_text",
+      "bytes": 1117,
+      "sha256": "4a7ee9c96b28cbf30c5bf7c2d211a0ef57179f0328e68ad7b7fa7d754b7da1a2",
+      "copied_from": "build-resolved .pio/libdeps/cardputer-adv/ArduinoJson/LICENSE.txt"
+    },
+    {
+      "component": "ArduinoJson",
+      "path": "licenses/libraries/ArduinoJson/library.json",
+      "kind": "unchanged_version_manifest",
+      "bytes": 748,
+      "sha256": "45c8072598d097cf03031ee4f3230031105329903e022a2abd15b1c56157c770",
+      "copied_from": "build-resolved .pio/libdeps/cardputer-adv/ArduinoJson/library.json"
+    },
+    {
+      "component": "IRremote",
+      "path": "licenses/libraries/IRremote/LICENSE",
+      "kind": "unchanged_original_text",
+      "bytes": 1227,
+      "sha256": "7e53f7b77b4ed079b6a0c195358c6b35c954c298e694b5dd3afc969dd4558332",
+      "copied_from": "build-resolved .pio/libdeps/cardputer-adv/IRremote/LICENSE"
+    },
+    {
+      "component": "IRremote",
+      "path": "licenses/libraries/IRremote/library.json",
+      "kind": "unchanged_version_manifest",
+      "bytes": 940,
+      "sha256": "4c380ebdcd205cadbd4f2d006f9612fcec4b44ca80edaeeea021d16fe2c059d2",
+      "copied_from": "build-resolved .pio/libdeps/cardputer-adv/IRremote/library.json"
+    },
+    {
+      "component": "M5Cardputer 1.1.1",
+      "path": "licenses/libraries/M5Cardputer/library.json",
+      "kind": "unchanged_version_manifest",
+      "bytes": 575,
+      "sha256": "0327566ea899c363669f541ea566d521e10f0d3aeebf9673570697fe8cc3e0f5",
+      "copied_from": "build-resolved .pio/libdeps/cardputer-adv/M5Cardputer/library.json"
+    },
+    {
+      "component": "M5Cardputer 1.1.1",
+      "path": "licenses/libraries/M5Cardputer/M5Cardputer.h.notice.txt",
+      "kind": "unchanged_original_header_section",
+      "line_range": [
+        1,
+        6
+      ],
+      "source_file_sha256": "e290a5eac38a274977ed63bfb911e149d694b6822e8b4b128d2aa5e3e37d7b91",
+      "sha256": "2fb1fa617d7c93f652a7881ac956ed374e52ddcbeb6390a80fb7f534173b82cc",
+      "bytes": 122,
+      "copied_from": "build-resolved .pio/libdeps/cardputer-adv/M5Cardputer/src/M5Cardputer.h"
+    },
+    {
+      "component": "M5GFX 0.2.33 embedded font notices",
+      "path": "licenses/libraries/M5GFX/src/lgfx/Fonts/IPA/IPA_Font_License_Agreement_v1.0.txt",
+      "kind": "unchanged_original_text",
+      "bytes": 20447,
+      "sha256": "272f7f805dfafd3cd9b7c5d99f38133664caacdf5b6ae1ed059f1b051ecad3c2",
+      "copied_from": "build-resolved M5GFX/src/lgfx/Fonts/IPA/IPA_Font_License_Agreement_v1.0.txt"
+    },
+    {
+      "component": "M5GFX 0.2.33 embedded font notices",
+      "path": "licenses/libraries/M5GFX/src/lgfx/Fonts/GFXFF/license.txt",
+      "kind": "unchanged_original_text",
+      "bytes": 1344,
+      "sha256": "3e7bede50526352926c2283e640f2823d9f9f2165d1852044c4fb1bbac283106",
+      "copied_from": "build-resolved M5GFX/src/lgfx/Fonts/GFXFF/license.txt"
+    },
+    {
+      "component": "M5GFX 0.2.33 embedded font notices",
+      "path": "licenses/libraries/M5GFX/src/lgfx/Fonts/efont/COPYRIGHT.txt",
+      "kind": "unchanged_original_text",
+      "bytes": 1486,
+      "sha256": "27c2942bbe8da9d5a8128695763d9a1da8d1697683ece43d7197f32a2de5c731",
+      "copied_from": "build-resolved M5GFX/src/lgfx/Fonts/efont/COPYRIGHT.txt"
+    },
+    {
+      "component": "minimp3 ea99364f61c14656440e8d77e9c233ccf3124633",
+      "path": "licenses/minimp3/LICENSE",
+      "kind": "unchanged_upstream_license_or_provenance",
+      "bytes": 6556,
+      "sha256": "6a1ee543e5282cd9061881edf462e6fdab181f328da71fc2c9a6950a80e94d01",
+      "copied_from": "include/third_party/minimp3/LICENSE"
+    },
+    {
+      "component": "minimp3 ea99364f61c14656440e8d77e9c233ccf3124633",
+      "path": "licenses/minimp3/PROVENANCE.md",
+      "kind": "unchanged_upstream_license_or_provenance",
+      "bytes": 497,
+      "sha256": "714d12c66f03945b2b37328545d759bc236ce5beff9932bda3ab7cfda2884361",
+      "copied_from": "include/third_party/minimp3/PROVENANCE.md"
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/sdk-4.4.7/cJSON/LICENSE",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 1084,
+      "sha256": "a36dda207c36db5818729c54e7ad4e8b0c6fba847491ba64f372c1a2037b6d5c",
+      "copied_from": "stable public release licenses/sdk-4.4.7/cJSON/LICENSE",
+      "retained_upstream_record": {
+        "component": "cJSON",
+        "version_or_ref": "87d8f0961a01bf09bef98ff89bae9fdec42181ee",
+        "source_url": "https://raw.githubusercontent.com/DaveGamble/cJSON/87d8f0961a01bf09bef98ff89bae9fdec42181ee/LICENSE",
+        "scope_note": "Submodule commit pinned by exact ESP-IDF 4.4.7 tree."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/sdk-4.4.7/esp-phy-lib/LICENSE",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "copied_from": "stable public release licenses/sdk-4.4.7/esp-phy-lib/LICENSE",
+      "retained_upstream_record": {
+        "component": "ESP PHY precompiled libraries",
+        "version_or_ref": "dcfdccf6cc2fc02d0886624b7998c890d1a19b28",
+        "source_url": "https://raw.githubusercontent.com/espressif/esp-phy-lib/dcfdccf6cc2fc02d0886624b7998c890d1a19b28/LICENSE",
+        "scope_note": "Both local ESP32-S3 binary archive Git blob hashes also match this exact submodule."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/sdk-4.4.7/esp32-wifi-lib/LICENSE",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "copied_from": "stable public release licenses/sdk-4.4.7/esp32-wifi-lib/LICENSE",
+      "retained_upstream_record": {
+        "component": "ESP32 Wi-Fi precompiled libraries",
+        "version_or_ref": "f2aae4d44ec7908013066e69d29b9948846c335c",
+        "source_url": "https://raw.githubusercontent.com/espressif/esp32-wifi-lib/f2aae4d44ec7908013066e69d29b9948846c335c/LICENSE",
+        "scope_note": "All six corresponding local ESP32-S3 binary archive Git blob hashes also match this exact submodule. Preserve upstream license without inferring combined-image terms."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/sdk-4.4.7/esp_diagnostics/esp_diagnostics.h.notice.txt",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 613,
+      "sha256": "6ad05078f352a12a5640d6e89f01da60f140fda2fbbffe669902b3052dcd919a",
+      "copied_from": "stable public release licenses/sdk-4.4.7/esp_diagnostics/esp_diagnostics.h.notice.txt",
+      "retained_upstream_record": {
+        "component": "esp_diagnostics actual installed header declaration",
+        "version_or_ref": "Arduino 2.0.17 / 5e19e086c43d0fa5e5a596497ff8f11a0a43f6c2",
+        "source_url": "https://raw.githubusercontent.com/espressif/arduino-esp32/5e19e086c43d0fa5e5a596497ff8f11a0a43f6c2/tools/sdk/esp32s3/include/esp_diagnostics/include/esp_diagnostics.h",
+        "scope_note": "Actual installed source notice and Arduino 2.0.17 whole-file blob match; the external esp-insights source commit remains unproven. This is an Apache declaration excerpt, not a complete component license."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/sdk-4.4.7/freertos/FreeRTOS.h.notice.txt",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 1251,
+      "sha256": "a1bd102a542acdb8bdd1b17607891c1b3247273de438cda97c6ce26230b6bfee",
+      "copied_from": "stable public release licenses/sdk-4.4.7/freertos/FreeRTOS.h.notice.txt",
+      "retained_upstream_record": {
+        "component": "FreeRTOS Kernel V10.4.3 copyright and MIT terms",
+        "version_or_ref": "38eeba213aa695aabfd6d89aa9f5078dbe5a94c3",
+        "source_url": "https://raw.githubusercontent.com/espressif/esp-idf/38eeba213aa695aabfd6d89aa9f5078dbe5a94c3/components/freertos/include/freertos/FreeRTOS.h",
+        "scope_note": "Actual installed header matches exact IDF whole-file Git blob; full opening copyright and MIT comment retained."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/sdk-4.4.7/freertos/LICENSE.md",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 1036,
+      "sha256": "508a77d2e7b51d98adeed32648ad124b7b30241a8e70b2e72c99f92d8e5874d1",
+      "copied_from": "stable public release licenses/sdk-4.4.7/freertos/LICENSE.md",
+      "retained_upstream_record": {
+        "component": "FreeRTOS SDK component",
+        "version_or_ref": "38eeba213aa695aabfd6d89aa9f5078dbe5a94c3",
+        "source_url": "https://raw.githubusercontent.com/espressif/esp-idf/38eeba213aa695aabfd6d89aa9f5078dbe5a94c3/components/freertos/LICENSE.md",
+        "scope_note": "Root MIT terms; copyright-bearing actual FreeRTOS header notice is also preserved."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/sdk-4.4.7/lwip/COPYING",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 1611,
+      "sha256": "8fb15ebdb19eb669e1d37fcd8e57a44c477fcc0e93a9ab0d181760965f94d5ed",
+      "copied_from": "stable public release licenses/sdk-4.4.7/lwip/COPYING",
+      "retained_upstream_record": {
+        "component": "lwIP",
+        "version_or_ref": "a45be9e438f6cf9c54ec150581819c3b95d5af6b",
+        "source_url": "https://raw.githubusercontent.com/espressif/esp-lwip/a45be9e438f6cf9c54ec150581819c3b95d5af6b/COPYING",
+        "scope_note": "Submodule commit pinned by exact ESP-IDF 4.4.7 tree."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/sdk-4.4.7/mbedtls/LICENSE",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 29852,
+      "sha256": "9b405ef4c89342f5eae1dd828882f931747f71001cfba7d114801039b52ad09b",
+      "copied_from": "stable public release licenses/sdk-4.4.7/mbedtls/LICENSE",
+      "retained_upstream_record": {
+        "component": "Mbed TLS",
+        "version_or_ref": "2b8e772fc1cb0732cda3bae7d1e9d6f4cfaf63d9",
+        "source_url": "https://raw.githubusercontent.com/espressif/mbedtls/2b8e772fc1cb0732cda3bae7d1e9d6f4cfaf63d9/LICENSE",
+        "scope_note": "Complete upstream dual-license text preserved as written; this record does not choose or alter license options."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/sdk-4.4.7/newlib/COPYING.NEWLIB",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 46295,
+      "sha256": "0681089a556e93791da82718d68011ba452de245f7f59c3846936304756ac0c0",
+      "copied_from": "stable public release licenses/sdk-4.4.7/newlib/COPYING.NEWLIB",
+      "retained_upstream_record": {
+        "component": "ESP-IDF Newlib support",
+        "version_or_ref": "38eeba213aa695aabfd6d89aa9f5078dbe5a94c3",
+        "source_url": "https://raw.githubusercontent.com/espressif/esp-idf/38eeba213aa695aabfd6d89aa9f5078dbe5a94c3/components/newlib/COPYING.NEWLIB",
+        "scope_note": "IDF component original; actual toolchain runtime ships a different COPYING.NEWLIB and is recorded separately."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/sdk-4.4.7/protobuf-c/LICENSE",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 1613,
+      "sha256": "b8999cb392cc5bbe8cd679de59584ad8d2f26033123e76f1d662fa14b9d4f287",
+      "copied_from": "stable public release licenses/sdk-4.4.7/protobuf-c/LICENSE",
+      "retained_upstream_record": {
+        "component": "protobuf-c",
+        "version_or_ref": "abc67a11c6db271bedbb9f58be85d6f4e2ea8389",
+        "source_url": "https://raw.githubusercontent.com/protobuf-c/protobuf-c/abc67a11c6db271bedbb9f58be85d6f4e2ea8389/LICENSE",
+        "scope_note": "Submodule commit pinned by exact ESP-IDF 4.4.7 tree."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/sdk-4.4.7/spiffs/LICENSE",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 1117,
+      "sha256": "d19257540156a51ed50c2378e7159066415d8bbbe147779f8deb0d3e73f1b0a7",
+      "copied_from": "stable public release licenses/sdk-4.4.7/spiffs/LICENSE",
+      "retained_upstream_record": {
+        "component": "SPIFFS",
+        "version_or_ref": "0dbb3f71c5f6fae3747a9d935372773762baf852",
+        "source_url": "https://raw.githubusercontent.com/pellepl/spiffs/0dbb3f71c5f6fae3747a9d935372773762baf852/LICENSE",
+        "scope_note": "Submodule commit pinned by exact ESP-IDF 4.4.7 tree."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/sdk-4.4.7/wpa_supplicant/CC0-1.0.txt",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 7048,
+      "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+      "copied_from": "stable public release licenses/sdk-4.4.7/wpa_supplicant/CC0-1.0.txt",
+      "retained_upstream_record": {
+        "component": "fastpbkdf2 referenced CC0 1.0 legal code",
+        "version_or_ref": "CC0 1.0 Universal",
+        "source_url": "https://creativecommons.org/publicdomain/zero/1.0/legalcode.txt",
+        "scope_note": "License referenced by the exact IDF fastpbkdf2.c source notice; complete original notice retained separately. Does not relicense other WPA files."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/sdk-4.4.7/wpa_supplicant/COPYING",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 965,
+      "sha256": "e9f84e02bb9ba965464e21604014f13d0f3c9299a1b5f7882574a9b4a261abe7",
+      "copied_from": "stable public release licenses/sdk-4.4.7/wpa_supplicant/COPYING",
+      "retained_upstream_record": {
+        "component": "WPA attribution and licensing history",
+        "version_or_ref": "38eeba213aa695aabfd6d89aa9f5078dbe5a94c3",
+        "source_url": "https://raw.githubusercontent.com/espressif/esp-idf/38eeba213aa695aabfd6d89aa9f5078dbe5a94c3/components/wpa_supplicant/COPYING",
+        "scope_note": "Points to README for current terms; not by itself the complete license text."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/sdk-4.4.7/wpa_supplicant/README",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 1803,
+      "sha256": "17ccbcf4b17a910795292fb4a95f4742d2ecda37d06fcf20d60ffbd70cfbc609",
+      "copied_from": "stable public release licenses/sdk-4.4.7/wpa_supplicant/README",
+      "retained_upstream_record": {
+        "component": "WPA current BSD terms",
+        "version_or_ref": "38eeba213aa695aabfd6d89aa9f5078dbe5a94c3",
+        "source_url": "https://raw.githubusercontent.com/espressif/esp-idf/38eeba213aa695aabfd6d89aa9f5078dbe5a94c3/components/wpa_supplicant/README",
+        "scope_note": "Original full README including current BSD terms and copyright; individual crypto file notices remain separate."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/sdk-4.4.7/wpa_supplicant/des-internal.c.notice.txt",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 889,
+      "sha256": "5a80641f4aa8c72eb60fd391ac6f6adccda460193712e742e80f190d8aca1e1e",
+      "copied_from": "stable public release licenses/sdk-4.4.7/wpa_supplicant/des-internal.c.notice.txt",
+      "retained_upstream_record": {
+        "component": "WPA DES LibTomCrypt and Jouni source attributions",
+        "version_or_ref": "38eeba213aa695aabfd6d89aa9f5078dbe5a94c3",
+        "source_url": "https://raw.githubusercontent.com/espressif/esp-idf/38eeba213aa695aabfd6d89aa9f5078dbe5a94c3/components/wpa_supplicant/src/crypto/des-internal.c",
+        "scope_note": "Opening source excerpt including the original per-file attributions. The excerpt is not a claim of a complete file-level notice inventory for all WPA archive members."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/sdk-4.4.7/wpa_supplicant/fastpbkdf2.c.notice.txt",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 633,
+      "sha256": "1433d7e65aa9df41aa201eca61783e62b6e589225f12e9adb503dfa07acaa9c0",
+      "copied_from": "stable public release licenses/sdk-4.4.7/wpa_supplicant/fastpbkdf2.c.notice.txt",
+      "retained_upstream_record": {
+        "component": "WPA fastpbkdf2 original CC0 dedication",
+        "version_or_ref": "38eeba213aa695aabfd6d89aa9f5078dbe5a94c3",
+        "source_url": "https://raw.githubusercontent.com/espressif/esp-idf/38eeba213aa695aabfd6d89aa9f5078dbe5a94c3/components/wpa_supplicant/src/crypto/fastpbkdf2.c",
+        "scope_note": "Opening source excerpt including the original per-file attributions. The excerpt is not a claim of a complete file-level notice inventory for all WPA archive members."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/sdk-4.4.7/xtensa/hal.h.notice.txt",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 1797,
+      "sha256": "274cb732d5292ab3fe9a58a7149b447fd3fb43517d9640f074d64dc485c24c98",
+      "copied_from": "stable public release licenses/sdk-4.4.7/xtensa/hal.h.notice.txt",
+      "retained_upstream_record": {
+        "component": "Xtensa HAL Cadence copyright and MIT terms",
+        "version_or_ref": "38eeba213aa695aabfd6d89aa9f5078dbe5a94c3",
+        "source_url": "https://raw.githubusercontent.com/espressif/esp-idf/38eeba213aa695aabfd6d89aa9f5078dbe5a94c3/components/xtensa/include/xtensa/hal.h",
+        "scope_note": "Actual installed header matches exact IDF whole-file Git blob; local libxt_hal.a also matches IDF components/xtensa/esp32s3/libxt_hal.a. The header notice is not asserted to cover every archive member."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/toolchain-8.4.0-2021r2-patch5/gcc/COPYING.RUNTIME",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 3324,
+      "sha256": "9d6b43ce4d8de0c878bf16b54d8e7a10d9bd42b75178153e3af6a815bdc90f74",
+      "copied_from": "stable public release licenses/toolchain-8.4.0-2021r2-patch5/gcc/COPYING.RUNTIME",
+      "retained_upstream_record": {
+        "component": "Actual toolchain GCC Runtime Library Exception",
+        "version_or_ref": "8.4.0+2021r2-patch5",
+        "scope_note": "Original GCC Runtime Library Exception v3.1; actual runtime header declarations preserved separately."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/toolchain-8.4.0-2021r2-patch5/gcc/COPYING3",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 35147,
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+      "copied_from": "stable public release licenses/toolchain-8.4.0-2021r2-patch5/gcc/COPYING3",
+      "retained_upstream_record": {
+        "component": "Actual toolchain GCC GPL v3 text",
+        "version_or_ref": "8.4.0+2021r2-patch5",
+        "scope_note": "Original bundled text paired with COPYING.RUNTIME; no claim that the combined firmware must adopt this license."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/toolchain-8.4.0-2021r2-patch5/gcc/c++config.h.notice.txt",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 1085,
+      "sha256": "1efa3f9441134d3de4915bc66aab650f16ad5dce5c1590530b3f6256996c3099",
+      "copied_from": "stable public release licenses/toolchain-8.4.0-2021r2-patch5/gcc/c++config.h.notice.txt",
+      "retained_upstream_record": {
+        "component": "GNU ISO C++ actual runtime header declaration",
+        "version_or_ref": "8.4.0+2021r2-patch5",
+        "scope_note": "Actual installed header GPL-3.0-or-later and GCC Runtime Library Exception 3.1 declaration; excerpt does not replace complete license texts."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/toolchain-8.4.0-2021r2-patch5/gcc/unwind.h.notice.txt",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 1070,
+      "sha256": "8e999c8d7ac3f52b0f42178dce66ecfeb3c189e38c80228134fcf7cf2190cdd0",
+      "copied_from": "stable public release licenses/toolchain-8.4.0-2021r2-patch5/gcc/unwind.h.notice.txt",
+      "retained_upstream_record": {
+        "component": "GCC actual runtime header declaration",
+        "version_or_ref": "8.4.0+2021r2-patch5",
+        "scope_note": "Actual installed header GPL-3.0-or-later and GCC Runtime Library Exception 3.1 declaration; excerpt does not replace complete license texts."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/toolchain-8.4.0-2021r2-patch5/newlib/COPYING.LIBGLOSS",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 22261,
+      "sha256": "334f3446894be102933b75f3fea18690dd967c2e9c2782f24f4f944ec1ad7496",
+      "copied_from": "stable public release licenses/toolchain-8.4.0-2021r2-patch5/newlib/COPYING.LIBGLOSS",
+      "retained_upstream_record": {
+        "component": "Actual toolchain libgloss bundled notices",
+        "version_or_ref": "8.4.0+2021r2-patch5",
+        "scope_note": "Original accompanying newlib/libgloss notices; not a claim that every described platform or copyright item contributes to this firmware."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/toolchain-8.4.0-2021r2-patch5/newlib/COPYING.NEWLIB",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 59777,
+      "sha256": "dec5d419a7a4b27c064c8367a21e5d7b58aefc162719dc169bc4f82a88994859",
+      "copied_from": "stable public release licenses/toolchain-8.4.0-2021r2-patch5/newlib/COPYING.NEWLIB",
+      "retained_upstream_record": {
+        "component": "Actual toolchain Newlib runtime license notices",
+        "version_or_ref": "8.4.0+2021r2-patch5",
+        "scope_note": "Different bytes from the IDF component COPYING.NEWLIB; preserved independently for the actual linked libc/libm package."
+      }
+    },
+    {
+      "component": "Pinned Arduino SDK/toolchain retained notice",
+      "path": "licenses/toolchain-8.4.0-2021r2-patch5/package.json",
+      "kind": "retained_original_notice_or_version_metadata",
+      "bytes": 455,
+      "sha256": "40b436b30848b52f0a66cb28b4a6c0118afb7ee242558078f4c2460b3bd70f8d",
+      "copied_from": "stable public release licenses/toolchain-8.4.0-2021r2-patch5/package.json",
+      "retained_upstream_record": {
+        "component": "Actual linked Xtensa ESP32-S3 toolchain package metadata",
+        "version_or_ref": "8.4.0+2021r2-patch5",
+        "scope_note": "Package metadata describes the toolchain; its aggregate license field is not assigned to the output firmware or to every runtime component."
+      }
+    },
+    {
+      "component": "Retained upstream component/source notice",
+      "path": "licenses/supplemental/arduino-esp32-2.0.17/LICENSE.md",
+      "kind": "retained_original_notice_or_license",
+      "bytes": 26338,
+      "sha256": "994ce1902a23c74519b5d118c6bbb657edabce91dd6b7cc825d86bb8f5c9780f",
+      "copied_from": "stable public release licenses/supplemental/arduino-esp32-2.0.17/LICENSE.md",
+      "retained_upstream_record": {
+        "component": "Arduino ESP32 repository license",
+        "version_or_ref": "2.0.17 / 5e19e086c43d0fa5e5a596497ff8f11a0a43f6c2",
+        "source_url": "https://raw.githubusercontent.com/espressif/arduino-esp32/5e19e086c43d0fa5e5a596497ff8f11a0a43f6c2/LICENSE.md",
+        "scope_note": "Exact upstream Arduino 2.0.17 LICENSE.md, supplemental to the PlatformIO package 3.20017.241212+sha.dcc1105b source declarations. Other bundled components retain their own notices."
+      }
+    },
+    {
+      "component": "Retained upstream component/source notice",
+      "path": "licenses/supplemental/esp-idf-v4.4.7/LICENSE",
+      "kind": "retained_original_notice_or_license",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "copied_from": "stable public release licenses/supplemental/esp-idf-v4.4.7/LICENSE",
+      "retained_upstream_record": {
+        "component": "Candidate ESP-IDF source root license",
+        "version_or_ref": "v4.4.7",
+        "source_url": "https://raw.githubusercontent.com/espressif/esp-idf/v4.4.7/LICENSE",
+        "scope_note": "Only the ESP-IDF 4.4.7 repository root license. Not a complete component notice/SBOM set for the Arduino package precompiled archives."
+      }
+    },
+    {
+      "component": "Retained upstream component/source notice",
+      "path": "licenses/supplemental/LovyanGFX/license.txt",
+      "kind": "retained_original_notice_or_license",
+      "bytes": 5952,
+      "sha256": "ec7c22d763503f016c1e743e6089042e780fbb1c118ebcc0b1eb72232e8903b3",
+      "copied_from": "stable public release licenses/supplemental/LovyanGFX/license.txt",
+      "retained_upstream_record": {
+        "component": "LovyanGFX upstream license referenced by M5GFX",
+        "version_or_ref": "license file last changed at b62ea8b8a84b8735ddf0fa3c72ec5e1ee03241ac (2020-04-12)",
+        "source_url": "https://raw.githubusercontent.com/lovyan03/LovyanGFX/b62ea8b8a84b8735ddf0fa3c72ec5e1ee03241ac/license.txt",
+        "scope_note": "Contains original attribution plus Adafruit_GFX BSD, Bodmer FreeBSD and lovyan03 FreeBSD text. It is the fixed text behind the embedded source pointer; the exact imported LovyanGFX code revision is not established by this license file."
+      }
+    },
+    {
+      "component": "Retained upstream component/source notice",
+      "path": "licenses/supplemental/TFT_eSPI/license.2023.txt",
+      "kind": "retained_original_notice_or_license",
+      "bytes": 6243,
+      "sha256": "f79bffc86315004815e4e7f11a23e757de0f25793022e6020938e2db1a495a9d",
+      "copied_from": "stable public release licenses/supplemental/TFT_eSPI/license.2023.txt",
+      "retained_upstream_record": {
+        "component": "TFT_eSPI upstream font/license reference",
+        "version_or_ref": "d506a3c49d55480e22bbecec7e2b45346ae66222 (2023-12-07)",
+        "source_url": "https://raw.githubusercontent.com/Bodmer/TFT_eSPI/d506a3c49d55480e22bbecec7e2b45346ae66222/license.txt",
+        "scope_note": "Historical complete upstream license file predating the factory import, preserving 2023 Bodmer notice and other attributions. M5GFX points here for fonts 2/4/6/7/8; the precise original font import revision remains unpinned."
+      }
+    },
+    {
+      "component": "Retained upstream component/source notice",
+      "path": "licenses/supplemental/candidate/TomThumb.h.notice.txt",
+      "kind": "retained_original_notice_or_license",
+      "bytes": 2328,
+      "sha256": "fcca05d45c70147baf582092b2bcb2b4924c19b3e9a3062ca4aecd51cc941bc6",
+      "copied_from": "stable public release licenses/supplemental/candidate/TomThumb.h.notice.txt",
+      "retained_upstream_record": {
+        "component": "TomThumb original complete BSD notice and modification attributions",
+        "version_or_ref": "M5GFX 0.2.33",
+        "scope_note": "Verbatim opening source comment, including full three-clause terms and source attribution. No font bitmap copied."
+      }
+    },
+    {
+      "component": "Retained upstream component/source notice",
+      "path": "licenses/supplemental/assets/hermes-agent/LICENSE",
+      "kind": "retained_original_notice_or_license",
+      "bytes": 1070,
+      "sha256": "821556e6336796450ab852d375117b48a4887e71d255794fd6318d99982a5ab6",
+      "copied_from": "stable public release licenses/supplemental/assets/hermes-agent/LICENSE",
+      "retained_upstream_record": {
+        "component": "Hermes avatar source repository license",
+        "version_or_ref": "60f56a6b13c8eb9a9e088c6fc1165257c92f7e11",
+        "source_url": "https://raw.githubusercontent.com/NousResearch/hermes-agent/60f56a6b13c8eb9a9e088c6fc1165257c92f7e11/LICENSE",
+        "scope_note": "Original pinned repository license referenced by the existing asset manifest. Does not establish separate trademark permission or endorsement."
+      }
+    },
+    {
+      "component": "Retained upstream component/source notice",
+      "path": "licenses/supplemental/assets/kimi-code/LICENSE",
+      "kind": "retained_original_notice_or_license",
+      "bytes": 1068,
+      "sha256": "23cc68e17992e0b512ae2e80afc5787d7d8e0fbfbdb4fff54ec0245508fa400e",
+      "copied_from": "stable public release licenses/supplemental/assets/kimi-code/LICENSE",
+      "retained_upstream_record": {
+        "component": "Kimi avatar source repository license",
+        "version_or_ref": "ef727e517923cb312cb48d42825c49dfacd528e7",
+        "source_url": "https://raw.githubusercontent.com/MoonshotAI/kimi-code/ef727e517923cb312cb48d42825c49dfacd528e7/LICENSE",
+        "scope_note": "Original pinned repository license referenced by the existing asset manifest. Does not establish separate trademark permission or endorsement."
+      }
+    },
+    {
+      "component": "Retained upstream component/source notice",
+      "path": "licenses/supplemental/assets/octicons/LICENSE",
+      "kind": "retained_original_notice_or_license",
+      "bytes": 1068,
+      "sha256": "da259c8bd0de62713ccdcf88910aebca810644f98c2c912bad814fc79ea778df",
+      "copied_from": "stable public release licenses/supplemental/assets/octicons/LICENSE",
+      "retained_upstream_record": {
+        "component": "Copilot avatar source repository license",
+        "version_or_ref": "6dbe38e4e9b4987b2c9332d719c57fbbdd083e2d",
+        "source_url": "https://raw.githubusercontent.com/primer/octicons/6dbe38e4e9b4987b2c9332d719c57fbbdd083e2d/LICENSE",
+        "scope_note": "Existing floating source pinned at retrieval; icons/copilot-24.svg SHA-256 matches the existing asset eeafb3c2f333e04ccf7d031ae215f7adafaed4c6352556b0bf79496e048bcdd7. Repository MIT text is not separate trademark permission."
+      }
+    },
+    {
+      "component": "FatFs R0.13c (new SD recording backend)",
+      "path": "licenses/sdk-4.4.7/fatfs/ff.h.notice.txt",
+      "kind": "unchanged_original_header_license_section",
+      "line_range": [
+        1,
+        19
+      ],
+      "bytes": 941,
+      "sha256": "81560b2499d6bd3dccb5412b2a146256f1bae0f1f711bf7188f38a5ae4beac27",
+      "source_file_sha256": "8bbebbbbfcfaa19f2998702364e65e4c96ec542a67682ca92b9ef6f7ed441cab",
+      "copied_from": "installed pinned Arduino ESP32 2.0.17 tools/sdk/esp32s3/include/fatfs/src/ff.h"
+    },
+    {
+      "component": "Existing candidate asset notice/provenance",
+      "path": "assets/fusion-pixel/OFL.txt",
+      "kind": "existing_source_notice_or_provenance_retained",
+      "bytes": 4418,
+      "sha256": "bc518cf64b8032c07690f33cc270c35c179255a6ac8efa7c165ebae7e8f76a63"
+    },
+    {
+      "component": "Existing candidate asset notice/provenance",
+      "path": "assets/fusion-pixel/EFONT-LICENSE.txt",
+      "kind": "existing_source_notice_or_provenance_retained",
+      "bytes": 1486,
+      "sha256": "27c2942bbe8da9d5a8128695763d9a1da8d1697683ece43d7197f32a2de5c731"
+    },
+    {
+      "component": "Existing candidate asset notice/provenance",
+      "path": "assets/fusion-pixel/NOTICE.md",
+      "kind": "existing_source_notice_or_provenance_retained",
+      "bytes": 1908,
+      "sha256": "4bacd8f1c7a98bd27f8ea094f21055c84dd96c1ee4b3a203fe0fc6fdcea37dde"
+    },
+    {
+      "component": "Existing candidate asset notice/provenance",
+      "path": "assets/fusion-pixel/provenance.json",
+      "kind": "existing_source_notice_or_provenance_retained",
+      "bytes": 2556,
+      "sha256": "7335fc04e51384490d810fb98a27cc3e5ed2a180c3813cb9e5424afa0c13f57b"
+    },
+    {
+      "component": "Existing candidate asset notice/provenance",
+      "path": "assets/fusion-pixel/LICENSES/ark-pixel/OFL.txt",
+      "kind": "existing_source_notice_or_provenance_retained",
+      "bytes": 4412,
+      "sha256": "3ab41567e68e3988ba1ef16dd2644eca95ca5648ea12e7d46e6287fc0bbe5aee"
+    },
+    {
+      "component": "Existing candidate asset notice/provenance",
+      "path": "assets/fusion-pixel/LICENSES/cubic-11/OFL.txt",
+      "kind": "existing_source_notice_or_provenance_retained",
+      "bytes": 5364,
+      "sha256": "2b6e5938e5cffa0b9e183bd05f8c363e174e7ebed1a0556e2855fd1707fa2188"
+    },
+    {
+      "component": "Existing candidate asset notice/provenance",
+      "path": "assets/fusion-pixel/LICENSES/galmuri/LICENSE.txt",
+      "kind": "existing_source_notice_or_provenance_retained",
+      "bytes": 4360,
+      "sha256": "86a3ee9495f942f0243f18c103da9faca27adb88142613edb8bb852e56c892c1"
+    },
+    {
+      "component": "Existing candidate asset notice/provenance",
+      "path": "assets/fusion-pixel/upstream/u8g2-bdfconv-2.36.18/LICENSE",
+      "kind": "existing_source_notice_or_provenance_retained",
+      "bytes": 3754,
+      "sha256": "35070a56a2cb59560278c1734c51da94b679bc208c5244625769a0f1df001d30"
+    },
+    {
+      "component": "Existing candidate asset notice/provenance",
+      "path": "assets/pinyin/NOTICE",
+      "kind": "existing_source_notice_or_provenance_retained",
+      "bytes": 1219,
+      "sha256": "3095ba6c531ffbed36507541ac7e8294f1371983575a246bf76506eb9d0d8583"
+    },
+    {
+      "component": "Existing candidate asset notice/provenance",
+      "path": "assets/pinyin/upstream/LICENSE",
+      "kind": "existing_source_notice_or_provenance_retained",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "component": "Existing candidate asset notice/provenance",
+      "path": "assets/pinyin/upstream/AUTHORS",
+      "kind": "existing_source_notice_or_provenance_retained",
+      "bytes": 177,
+      "sha256": "f4cff0fcbca4668ac449c24a53be547e162bc60cce63fdc5d5906801a452edc4"
+    },
+    {
+      "component": "Existing candidate asset notice/provenance",
+      "path": "assets/chat-symbols/NOTICE",
+      "kind": "existing_source_notice_or_provenance_retained",
+      "bytes": 797,
+      "sha256": "28090d0ae04c1a7359912854cfb1a6e00733bc9e1b474cac1dda9817a4adcfc3"
+    },
+    {
+      "component": "Existing candidate asset notice/provenance",
+      "path": "assets/chat-symbols/upstream/LICENSE.txt",
+      "kind": "existing_source_notice_or_provenance_retained",
+      "bytes": 1995,
+      "sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96"
+    },
+    {
+      "component": "Existing candidate asset notice/provenance",
+      "path": "assets/avatars/manifest.json",
+      "kind": "existing_source_notice_or_provenance_retained",
+      "bytes": 14494,
+      "sha256": "70ce734ff309b820b31efb21dd5849d13a1a168d9d4f7b39bd7f319bf115cc58"
+    },
+    {
+      "component": "Existing candidate asset notice/provenance",
+      "path": "assets/avatars/README.zh-CN.md",
+      "kind": "existing_source_notice_or_provenance_retained",
+      "bytes": 2418,
+      "sha256": "127f6133d81ca8796602f13638510e9fdfbb39b6926407e42682bcee4a33dc01"
+    },
+    {
+      "component": "Existing candidate asset notice/provenance",
+      "path": "assets/boot-video/asset-manifest.json",
+      "kind": "existing_source_notice_or_provenance_retained",
+      "bytes": 26375,
+      "sha256": "d515abf6c4fda1917b2dc773806b1beb3756fd9ecd499a994bca68148c69be22"
+    },
+    {
+      "component": "Existing candidate asset notice/provenance",
+      "path": "assets/boot-video/remotion-build-report.json",
+      "kind": "existing_source_notice_or_provenance_retained",
+      "bytes": 3373,
+      "sha256": "469f4117d7f7f5b61176bb233dcad1fa36f36f8db1cd27ea216ea009fd9cac7f"
+    },
+    {
+      "component": "Existing candidate asset notice/provenance",
+      "path": "assets/boot-video/source/README.zh-CN.md",
+      "kind": "existing_source_notice_or_provenance_retained",
+      "bytes": 3750,
+      "sha256": "2ff6fd8d3ddceb1672b836c3eb2da5d2d411ee25d0d096add3d3821296a17814"
+    },
+    {
+      "component": "Existing candidate asset notice/provenance",
+      "path": "assets/boot-video/source/package.json",
+      "kind": "existing_source_notice_or_provenance_retained",
+      "bytes": 1102,
+      "sha256": "fb6a72697a8ab00c0144d04be7324acb51fdbc58514a375e2fe0387500dfa157"
+    }
+  ]
+}

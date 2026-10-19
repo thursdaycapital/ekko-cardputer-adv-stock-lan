@@ -1,0 +1,7 @@
+{
+  "method": "Exact credential values from current private auth readiness, NVS, and official model response; values never emitted",
+  "minimumValueBytes": 8,
+  "uniqueValuesChecked": 14,
+  "matchedFiles": [],
+  "privateDataCopied": false
+}

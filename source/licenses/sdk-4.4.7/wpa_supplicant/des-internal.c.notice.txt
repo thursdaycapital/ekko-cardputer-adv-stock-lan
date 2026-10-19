@@ -1,0 +1,37 @@
+/*
+ * DES and 3DES-EDE ciphers
+ *
+ * Modifications to LibTomCrypt implementation:
+ * Copyright (c) 2006-2009, Jouni Malinen <j@w1.fi>
+ *
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
+ */
+
+#include "includes.h"
+
+#include "common.h"
+#include "crypto.h"
+#include "des_i.h"
+
+/*
+ * This implementation is based on a DES implementation included in
+ * LibTomCrypt. The version here is modified to fit in wpa_supplicant/hostapd
+ * coding style.
+ */
+
+/* LibTomCrypt, modular cryptographic library -- Tom St Denis
+ *
+ * LibTomCrypt is a library that provides various cryptographic
+ * algorithms in a highly modular and flexible manner.
+ *
+ * The library is free for all purposes without any express
+ * guarantee it works.
+ *
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
+ */
+
+/**
+  DES code submitted by Dobes Vandermeer
+*/
+

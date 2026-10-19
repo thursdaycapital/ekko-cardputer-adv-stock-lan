@@ -1,0 +1,32 @@
+{
+  "checkedAtUtc": "2026-10-19T09:38:32.273666+00:00",
+  "userConfirmedTextReply": true,
+  "installedOfficialStudioVersion": "0.7.37",
+  "officialAppEntrySha256": "4060486285a2f22b5e8efe5fbebd008c657553c8716613a3e2fe0002c52d56d6",
+  "firmware": "cardputer-adv-v9.0.0-dev.10-ram-lan",
+  "connection": {
+    "transport": "lan-standard",
+    "namespace_ready": true,
+    "management_online": true,
+    "http_port": 8748,
+    "saved_binding_matches": true
+  },
+  "agentId": "ekko-agent",
+  "uptime_ms": 71098,
+  "chat": {
+    "ready": true,
+    "messages": 5,
+    "sending": false,
+    "send_unknown": false,
+    "accepted": 1,
+    "received_chunks": 13
+  },
+  "freshVoiceOn0737Tested": false,
+  "newApplicationStartupSincePriorSnapshot": true,
+  "crossSnapshotCounterDeltasApplicable": false,
+  "postUpdateCurrentApplicationAcceptedMessages": 1,
+  "postUpdateCurrentApplicationReplyChunks": 13,
+  "currentOriginalServerPid": 16731,
+  "originalServerStartedBeforeCurrentApplication": true,
+  "powerCycleVersusApplicationReentryNotDistinguished": true
+}

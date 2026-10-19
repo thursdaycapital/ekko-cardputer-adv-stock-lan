@@ -1,0 +1,25 @@
+{
+  "checkedAtUtc": "2026-10-19T09:40:18.687497+00:00",
+  "status": "local_development_candidate_reviewed",
+  "publicRelease": false,
+  "fullPhysicalAcceptanceMatrixComplete": false,
+  "firmwareSha256": "e753a1b04f22b249c962ad9fb304a5f193a6cd067bf41deedf6654eb0d8b2fb5",
+  "defaultModelChangeUserAuthorized": true,
+  "dailyDeviceUserConfirmed": {
+    "text": true,
+    "recognition": true,
+    "audibleReply": true,
+    "fiveSecondAutoStop": true
+  },
+  "independentFullFiveSecondByteCountObserved": false,
+  "physicalEvidence": "production-five-second-voice.json",
+  "existingFactoryAndSettingsReadbackPreserved": true,
+  "remoteSupported": false,
+  "acceptedDailyOfficialStudioVersion": "0.7.36",
+  "currentDailyOfficialStudioVersion": "0.7.37",
+  "newOfficialProcessDeviceReconnectObserved": true,
+  "postUpdateNewMessagePending": false,
+  "postUpdateTextReplyUserConfirmed": true,
+  "postUpdateTextEvidence": "production-0737-text-user-confirmed.json",
+  "postUpdateVoiceRetested": false
+}

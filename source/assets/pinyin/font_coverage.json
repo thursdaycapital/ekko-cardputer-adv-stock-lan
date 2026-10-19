@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "font": "M5GFX 0.2.33 efontCN_12",
+  "source_url": "https://github.com/m5stack/M5GFX/blob/0.2.33/src/lgfx/Fonts/efont/lgfx_efont_cn.c",
+  "source_sha256": "ceb7bae98279b5b196a4742b0814970d095ddcaabea8a9ac3cebe1e1f7add873",
+  "coverage_sha256": "0c69a7f6b4107bc3384db71c2552ad5bcb703a36973f26d7832884e094cdc377",
+  "glyphs": 7545,
+  "font_array_bytes": 213444,
+  "notice": "Unicode membership facts only; no glyph outlines or pixels copied. Original font copyright 2000-2003 /efont/ The Electronic Font Open Laboratory."
+}

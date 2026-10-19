@@ -1,0 +1,10 @@
+.pio/
+node_modules/
+__pycache__/
+*.pyc
+.DS_Store
+private/
+*.private.*
+*.log
+*.sqlite*
+*.db

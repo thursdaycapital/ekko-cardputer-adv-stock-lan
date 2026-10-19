@@ -1,0 +1,1 @@
+Canonical Agent catalog from Ekko Studio v0.7.36, commit `1242ac63556491c92ba6dd49d89fd19c91a6bdd5`, `config/agents.json`. This verbatim fixture lets standalone firmware tests check IDs, order, names and supported modes without the Studio monorepo.

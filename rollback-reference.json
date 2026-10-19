@@ -1,0 +1,11 @@
+{
+  "bundled": false,
+  "version": "v8.3.0-factory1.7.0",
+  "release_page": "https://github.com/thursdaycapital/ekko-cardputer-adv/releases/tag/v8.3.0-factory1.7.0",
+  "application_path_in_release": "firmware/ekko-update-0x10000.bin",
+  "write_offset": "0x10000",
+  "bytes": 3300528,
+  "sha256": "c5898d0e79d600aec884c5be7c2e08a15a3301bc6a983b19ed5cd389546e7448",
+  "verification": "Hash calculated from the retained local published application; remote assets were not downloaded in this task.",
+  "desktop_compatibility": "Previous stable full chat features may require its matching 0.7.36-cardputer.5 desktop extension. This is not the dev10 unmodified-Studio contract."
+}

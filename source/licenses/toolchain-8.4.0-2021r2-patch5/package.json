@@ -1,0 +1,21 @@
+{
+  "name": "toolchain-xtensa-esp32s3",
+  "version": "8.4.0+2021r2-patch5",
+  "description": "GCC Toolchain for Espressif ESP32-S3 Xtensa MCUs",
+  "keywords": [
+    "build tools",
+    "compiler",
+    "assembler",
+    "linker",
+    "preprocessor",
+    "espressif",
+    "esp32",
+    "esp32s3"
+  ],
+  "license": "GPL-2.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/espressif/crosstool-NG"
+  },
+  "system": "darwin_arm64"
+}

@@ -1,0 +1,74 @@
+{
+  "generator": "sharp",
+  "sharp_version": "0.35.3",
+  "width": 44,
+  "height": 44,
+  "background_rgb565": "0xEF3A",
+  "header_sha256": "e38d88a2b57383035dc730237b41c84bae46490a39e8b1416acf53a43bc27aeb",
+  "assets": [
+    {
+      "id": "ekko-agent",
+      "pixels_sha256_le": "7a52770587701297a2c7a06b0321301c5806b0bbf6e6d541289b6e6826a07729"
+    },
+    {
+      "id": "hermes",
+      "pixels_sha256_le": "e3f91fcf12825c6a523aea55f2ebe9cbaf89d4590597471cff1f6a69c12caf68"
+    },
+    {
+      "id": "claude-code",
+      "pixels_sha256_le": "a4ad5b886ccabeef8a4b1dcd8331840ee79b9cd2d3ae0596d30c8e03150f19bc"
+    },
+    {
+      "id": "codex",
+      "pixels_sha256_le": "8f2a06ca6bfc35ae968fc09fde120378dacb065187c4ecc6e411f1f3365b131a"
+    },
+    {
+      "id": "pi",
+      "pixels_sha256_le": "82cbe85817fb1511ed5ffd285a61cc09d5e99ba179bd687d02973f911cecbced"
+    },
+    {
+      "id": "grok",
+      "pixels_sha256_le": "6deb6002d5b7028956971b23f6df14f3da586f2fb62f8f8c007a35305e43227d"
+    },
+    {
+      "id": "opencode",
+      "pixels_sha256_le": "cfdf00363bdb552d75278d3bc4b1f3ed32187ba549a98b1e1075f6cdab78ac03"
+    },
+    {
+      "id": "dsh",
+      "pixels_sha256_le": "b9f716699400f9cf6a11019b6f2f71188b16c514ea965ee0f7a969012da963ac"
+    },
+    {
+      "id": "cursor",
+      "pixels_sha256_le": "75601106c6723c8ebe2beab3e223a0e404a989aff20b05247de804f3268a1d7d"
+    },
+    {
+      "id": "antigravity",
+      "pixels_sha256_le": "bf1c728c6a906fefbac297f9886cae716810dcfaec3f96e562154c384e3fba23"
+    },
+    {
+      "id": "qwen",
+      "pixels_sha256_le": "8aca35b569032dc720f9c75f8ad4f5d281065ebd88b06837a122f787fc14ef32"
+    },
+    {
+      "id": "kimi",
+      "pixels_sha256_le": "d9389b5e8ea1fe84682c0401dbe2ea303e77b7f9c2daa445c0f76bf63a0670a6"
+    },
+    {
+      "id": "codebuddy",
+      "pixels_sha256_le": "271a616329aebc58c4a2b15caeaf6301b02dfe46f421b49753f089c05f568d6f"
+    },
+    {
+      "id": "qoder",
+      "pixels_sha256_le": "37153d7c98fd57a36c6cfb89c08a9bf672747531753a0d8c50bab809c1edb827"
+    },
+    {
+      "id": "copilot",
+      "pixels_sha256_le": "41f07921818d642a8e489f29d2ef87e0d87ff75d376d692b6328e34062c628cb"
+    },
+    {
+      "id": "zcode",
+      "pixels_sha256_le": "e758707bdb5c8759d4a6a390b1b62c5ce0fbe6a2b95131e50ef053d39385f6f6"
+    }
+  ]
+}

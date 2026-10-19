@@ -1,0 +1,6 @@
+# Shared with the CardputerADV UserDemo. Preserve existing Ekko NVS/app offsets.
+nvs,      data, nvs,     0x9000,   0x5000,
+otadata,  data, ota,     0xe000,   0x2000,
+app0,     app,  ota_0,   0x10000,  0x330000,
+factory,  app,  factory, 0x340000, 0x400000,
+spiffs,   data, spiffs,  0x740000, 0xc0000,

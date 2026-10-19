@@ -1,0 +1,11 @@
+.pio/
+node_modules/
+.vscode/
+__pycache__/
+*.pyc
+.DS_Store
+private/
+*.private.*
+*.log
+.env
+.env.*

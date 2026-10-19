@@ -1,0 +1,94 @@
+{
+  "checkedAtUtc": "2026-10-19T08:45:16.017238+00:00",
+  "userConfirmed": {
+    "recognition": true,
+    "textReply": true,
+    "audibleReply": true,
+    "fiveSecondAutoStop": true
+  },
+  "firmware": "cardputer-adv-v9.0.0-dev.10-ram-lan",
+  "uptime_ms": 426776,
+  "connection": {
+    "transport": "lan-standard",
+    "namespace_ready": true,
+    "management_online": true,
+    "http_port": 8748,
+    "saved_binding_matches": true
+  },
+  "agentId": "ekko-agent",
+  "chat": {
+    "ready": true,
+    "messages": 3,
+    "sending": false,
+    "send_unknown": false,
+    "accepted": 1,
+    "received_chunks": 9,
+    "history_toggles": 0,
+    "scroll_up": 0
+  },
+  "memory": {
+    "free_heap": 103776,
+    "min_free_heap": 19428,
+    "max_alloc_heap": 90100,
+    "loop_stack_bytes": 12288,
+    "loop_stack_min_free_bytes": 7068
+  },
+  "recording": {
+    "kind": "ram_ima4",
+    "sd_required": false,
+    "limit_ms": 5000,
+    "prepare_error": 0,
+    "begin_error": 0,
+    "result": 0,
+    "state": 0,
+    "capacity_bytes": 0,
+    "recorded_bytes": 0,
+    "encoded_capacity_bytes": 0,
+    "encoded_bytes": 0,
+    "last_pcm_bytes": 63488,
+    "last_encoded_bytes": 15872,
+    "heap_start_bytes": 117452,
+    "heap_min_observed_bytes": 27640,
+    "largest_min_observed_bytes": 9204,
+    "worker_free_before_bytes": 72288,
+    "worker_largest_before_bytes": 53236,
+    "admission_error": 0
+  },
+  "durationSeconds": 1.984,
+  "fiveSecondByteCountObserved": false,
+  "capture": {
+    "active": false,
+    "error": 0,
+    "sample_rate": 16000,
+    "buffer_bytes": 0,
+    "storage_retained": false,
+    "produced_blocks": 31,
+    "consumed_blocks": 31,
+    "max_ready_blocks": 1,
+    "overruns": 0,
+    "invalid_callbacks": 0,
+    "discarded_after_join": 1
+  },
+  "officialVoice": {
+    "error": 0,
+    "http": 200,
+    "metrics_available": true,
+    "stack_min_free_bytes": 27932,
+    "heap_min_observed_bytes": 48208,
+    "largest_min_observed_bytes": 32756,
+    "boot_heap_min_bytes": 19428
+  },
+  "stream": {
+    "queued": 146,
+    "released": 146,
+    "in_flight": 0,
+    "claim_failures": 0,
+    "cancelled_unqueued": 0,
+    "rejected_releases": 0,
+    "discarded_after_join": 0,
+    "source_empty_before_submit": 1,
+    "max_submit_gap_us": 31669,
+    "write_timeouts": 0,
+    "buffer_bytes": 6144
+  }
+}

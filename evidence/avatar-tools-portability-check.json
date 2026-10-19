@@ -1,0 +1,123 @@
+{
+  "scope": "Delivery documentation and avatar tooling only; no runtime source, build settings, generated artwork, firmware, device, or Studio service changes.",
+  "related_findings": [
+    "PK-05",
+    "PK-06",
+    "LP-006",
+    "LP-011"
+  ],
+  "dependency_install": {
+    "command": "npm ci --prefix assets/avatars --no-audit --no-fund",
+    "sharp": "0.35.3",
+    "lockfileVersion": 3,
+    "node": "v25.8.1",
+    "platform": "darwin-arm64",
+    "libvips": "8.18.3",
+    "rsvg": "2.62.90",
+    "new_node_modules_removed": true
+  },
+  "initial_read_only_check": {
+    "exit_code": 1,
+    "error": "Generated header is stale",
+    "diagnosis": {
+      "sharp_version": "0.35.3",
+      "libvips": "8.18.3",
+      "native_svg": "2.62.90",
+      "node": "v25.8.1",
+      "platform": "darwin",
+      "arch": "arm64",
+      "header_equal": false,
+      "first_difference_line": 14,
+      "old_line": "// ekko-agent: original 7751f4d07155e217ba9d85e6a791597e142190c3a4dec89c0577132dd720be5d; pixels 7a52770587701297a2c7a06b0321301c5806b0bbf6e6d541289b6e6826a07729",
+      "new_line": "// ekko-agent: original 30d202626b7114bd92730323c062c15b25b129563f0a45d2019399c26b61ec1d; pixels 7a52770587701297a2c7a06b0321301c5806b0bbf6e6d541289b6e6826a07729",
+      "changed_pixel_assets": [],
+      "old_header_sha256": "e38d88a2b57383035dc730237b41c84bae46490a39e8b1416acf53a43bc27aeb",
+      "candidate_header_sha256": "847a5492de1633194d598337e3ac1855f37645a69fcbf551e12b3a55fec494cd"
+    },
+    "confirmed_reason": "Four metadata-stripped PNG entries retain downloaded_source_sha256 separately from the checked-in sha256; all four existing header original comments match the download hash. No pixel hash differs."
+  },
+  "correction": "Use downloaded_source_sha256, when recorded, only for the source provenance comment. Continue verifying the actual local bytes against sha256. No rendering algorithm changes.",
+  "checks": [
+    {
+      "command": "node assets/avatars/generate.mjs --check",
+      "exit_code": 0,
+      "output": "Verified 16 real brand avatars, 44x44, 61952 bytes in flash"
+    },
+    {
+      "command": "python3 -B assets/avatars/test_assets.py",
+      "exit_code": 0,
+      "output": "16 canonical avatars: original hashes, vector/raster provenance, deterministic pixels and C++ bounds passed",
+      "sanitizers": [
+        "address",
+        "undefined"
+      ]
+    }
+  ],
+  "frozen_source": {
+    "entry_count": 140,
+    "missing": [],
+    "mismatch": {
+      "tests/integration/README.zh-CN.md": {
+        "expected": "7a15063f7f3e31d6d2421f140583608bd220c828515586cf2895ad50af7fb63f",
+        "actual": "27e241611bda2eea07f4df4cf0fe6cb22a2b03c90bb9d7163822ecc14c8dad2e"
+      }
+    }
+  },
+  "frozen_avatar_files": {
+    "include/AgentAvatarAssets.h": "e38d88a2b57383035dc730237b41c84bae46490a39e8b1416acf53a43bc27aeb",
+    "assets/avatars/generated.json": "2da43a04c99ec3fc81c8556192d834950aae59a1fdd4c6313946f7024ac3c560",
+    "assets/avatars/manifest.json": "70ce734ff309b820b31efb21dd5849d13a1a168d9d4f7b39bd7f319bf115cc58",
+    "assets/avatars/originals/antigravity.png": "3445825d839b45ecedf0ed8bc6fa1a0c089c0370592bc40a5be1fc7d92e87a90",
+    "assets/avatars/originals/claude-code.svg": "55c31d5508b2e0ee82897d099e7f6c19ec4df441479433b44a9e00e13999dc4f",
+    "assets/avatars/originals/codebuddy.svg": "149baa45b9f9370c15f20d599afe381aa138e4fc13acf503f435c571ac93ecf5",
+    "assets/avatars/originals/codex.png": "b684f7d40ab752393efc15791070f8ce0746441cd2d6c53dda3aaa9f9358f3e4",
+    "assets/avatars/originals/copilot.svg": "eeafb3c2f333e04ccf7d031ae215f7adafaed4c6352556b0bf79496e048bcdd7",
+    "assets/avatars/originals/cursor.svg": "78f169abca311d70e18ada789ccf1a55b4ca0306822f21a9ab0c2658ed88dbe0",
+    "assets/avatars/originals/dsh.svg": "ddf6c2c11f640adc0666c4e3e32d9dd561ae70a3f8c26fe9938a826fb2fe4b7f",
+    "assets/avatars/originals/ekko-agent.png": "30d202626b7114bd92730323c062c15b25b129563f0a45d2019399c26b61ec1d",
+    "assets/avatars/originals/grok.svg": "875c2671c60e66e885294a6cf765d77b1c48a570f1f8f4313981ce7a238df02a",
+    "assets/avatars/originals/hermes.svg": "d105c5357560610b0d5357b0311e89f814ea7b5e86203d922a3386572c8e66ef",
+    "assets/avatars/originals/kimi.svg": "60685e25b2db869030290485a35eed8ca77e535d2c6b7731374df49edbfa98c8",
+    "assets/avatars/originals/opencode.png": "30f1cf3016919c793ced5d1fd2318a61379729b7fa3941d9f332724ae922a0e0",
+    "assets/avatars/originals/pi.svg": "abd66e7868b2d24f0f0895f9237ee8a6dcb22337583b0dc54aeb595acecb4d6b",
+    "assets/avatars/originals/qoder.svg": "5e1843cb50c4613855024453e76d5c06d2ca5562efebc12b4fcd80cf9ece1dd0",
+    "assets/avatars/originals/qwen.svg": "24156c849c9124505e13b38c6583a9d5d85a1f57d996c324d967f480a4d88696",
+    "assets/avatars/originals/zcode.svg": "2b9d3871496471ced5a758b9ea3b6051819a108d68cb6bed503fe55a28ba8c0c",
+    "assets/avatars/previews/antigravity.png": "5f2c57de596f24dc30ea32d1e017ee6d0faee72acf70cd7870ab20402c2829c0",
+    "assets/avatars/previews/claude-code.png": "2b6f447d50d7e118f7efa0266227510940cff0e2f4a0b7fab933b6092c9960e6",
+    "assets/avatars/previews/codebuddy.png": "2696330743b3c0a2af50d717c77c20f27ae4767be5eb8bc9fbb367ed5afeea7f",
+    "assets/avatars/previews/codex.png": "a15c4a1fc39c39e71c9e23943b3e35b6b05e60f3be024b5cf910c3ceae70fa04",
+    "assets/avatars/previews/contact-sheet.png": "6157fc7dddcf4ea36c32f59091b38023d55e656dd7c9e585afcb672ec92c9550",
+    "assets/avatars/previews/copilot.png": "6d661d70dedc272a01877dc26a88ae9beaa8f20f3faa76ea019f64d66452b98a",
+    "assets/avatars/previews/cursor.png": "ad4898e0f963b5b46f14690f174480eb38742e5018dc48a331800d91dc337ae3",
+    "assets/avatars/previews/dsh.png": "f875e26a73d455b5c0d2a4eac2f8db0a85af33ca758ae9db083a596124e483fe",
+    "assets/avatars/previews/ekko-agent.png": "5005a77c556628c6f0b2441e646fd8fb38775d84b9fcf0e5fe8085fa999fa070",
+    "assets/avatars/previews/grok.png": "18aaee15e3abd2c001d38b2b32b7ac5ee763be0c0165e7d5dfe192984c9add6f",
+    "assets/avatars/previews/hermes.png": "36a45dd92690dcae265a34eaa86ca9eb2397ad6594e70b6379aaa74a2f83b7a0",
+    "assets/avatars/previews/kimi.png": "8fdf9b1c611645aeeecedd3595f58cc4e9610b6f7077ff969f96e9355f22d71c",
+    "assets/avatars/previews/opencode.png": "f1e0a11b7578b66f979856592e9b216974292ce12d3443e57e6e3db581324f60",
+    "assets/avatars/previews/pi.png": "c9d1c00e8b264612a24a44168c47d8b62928c9a47f2bebd5db3cfd60a62e9f2c",
+    "assets/avatars/previews/qoder.png": "38036f959bfd1fab152fe721f90355464b5a484651da9f801d0f12838af3c412",
+    "assets/avatars/previews/qwen.png": "f1736c32eb0aea0c6737cc7b96bf0c00a40529f7488a0230a46959c1ceac1913",
+    "assets/avatars/previews/zcode.png": "c81fe9e5aa323647a57d12b9f92a7b4163ee35d444182d39b7d09e46426d5e42"
+  },
+  "delivery_tool_hashes": {
+    "THIRD_PARTY_NOTICES.md": "a92ade4b788c6cd6638fc1d398a4028cb85b943fa4baf578929bd1b7b6a4baed",
+    "assets/avatars/generate.mjs": "8ff9bf6ad253d23e04376548b4e9d39f92e9abff4a0cd9cc8a0b03d45f3c3fed",
+    "assets/avatars/test_assets.py": "39422b8f7d7ef2d48b4695858a3484e2fb9a072007e5b40f85f1ff062b0428b3",
+    "assets/avatars/README.zh-CN.md": "56d3215c7d17dbb33bf75b99fa446e8cc0ba836a366515d3a135b33984b05249",
+    "assets/avatars/package.json": "fd727596248057a3272df63e79ce769ccf4c047e3579f84fb35276c2d8794e3a",
+    "assets/avatars/package-lock.json": "1b837c3ffbcad15935e06c3b92bcc7a8f36b27b85e145a79a1fdf2b30e1c7e7d"
+  },
+  "artifact": {
+    "bytes": 3284000,
+    "sha256": "e753a1b04f22b249c962ad9fb304a5f193a6cd067bf41deedf6654eb0d8b2fb5"
+  },
+  "frozen_source_difference_scope": "139/140 entries match. Root confirmed the sole integration README change belongs to its separate official-auth audit documentation update; it is not a firmware compilation input. The original 140-entry manifest was not overwritten.",
+  "caveats": [
+    "No non-check generation command was executed.",
+    "This tool validation does not establish additional brand or video redistribution permissions.",
+    "Source .gitignore has no node_modules rule; task-created dependencies were removed and the delivery whitelist already excludes node_modules."
+  ]
+}
+

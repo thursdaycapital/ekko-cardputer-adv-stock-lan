@@ -1,0 +1,21 @@
+Pinyin dictionary data for Ekko Studio Cardputer-Adv
+
+Source: https://github.com/rime/rime-pinyin-simp
+Commit: 0c6861ef7420ee780270ca6d993d18d4101049d0
+Original pinyin_simp.dict.yaml is derived from Android Open Source Project
+PinyinIME and is distributed by Rime under Apache License, Version 2.0.
+The complete upstream dictionary, LICENSE, AUTHORS and README are retained
+unchanged in upstream/. Their SHA-256 hashes are recorded in sources.json.
+
+Modified files: PinyinDictionaryData.h, ../../src/PinyinDictionaryData.cpp,
+manifest.json. Modifications: UTF-8 compact records, concatenated pinyin keys,
+retained syllable boundaries, efontCN_12 display-coverage filtering, and
+per-syllable ue/ve spelling aliases, and frequency-based word pruning to fit
+a 760 KiB device resource budget.
+No hand-written word list or generated model output has been added.
+These modified dictionary data files remain available under Apache-2.0.
+
+Font coverage files contain only Unicode membership facts extracted from
+M5GFX 0.2.33 efontCN_12, not glyph pixels or font outlines. Original font:
+Copyright 2000-2003 /efont/ The Electronic Font Open Laboratory.
+Pinned source, SHA-256 and extraction details appear in font_coverage.json.

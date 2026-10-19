@@ -1,0 +1,15 @@
+Chat display emoji property data
+
+Derived from Unicode 17.0.0 emoji-data.txt, Copyright 2025 Unicode, Inc.
+Source: https://www.unicode.org/Public/17.0.0/ucd/emoji/emoji-data.txt
+License: Unicode License V3 (SPDX Unicode-3.0), retained in upstream/LICENSE.txt.
+Source files and SHA-256 hashes are recorded in sources.json.
+
+Modified/generated ChatSymbolRanges.h includes sorted, merged ranges for
+Emoji_Presentation, Emoji_Modifier, non-ASCII/non-modifier Emoji joiner bases,
+and the emoji tag subset of Emoji_Component.
+It does not copy emoji glyphs or images. Original source is retained unchanged.
+
+The small Chinese display-label policy is part of Ekko Studio firmware.
+It preserves ordinary mathematical/code/music symbols and never alters the
+server database or expands message text buffers.

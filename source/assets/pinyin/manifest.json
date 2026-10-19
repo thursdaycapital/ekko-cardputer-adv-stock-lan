@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "source_commit": "0c6861ef7420ee780270ca6d993d18d4101049d0",
+  "source_license": "Apache-2.0",
+  "generation": {
+    "budget_bytes": 778240,
+    "single_character_readings": 7291,
+    "single_characters": 6749,
+    "words": 30752,
+    "entries": 38072,
+    "original_entries": 38043,
+    "additional_syllable_aliases": 29,
+    "groups": 25897,
+    "syllables": 409,
+    "max_word_characters": 4,
+    "word_weight_minimum": 195,
+    "font": "M5GFX 0.2.33 efontCN_12",
+    "font_coverage_sha256": "0c69a7f6b4107bc3384db71c2552ad5bcb703a36973f26d7832884e094cdc377",
+    "excluded_unsupported_character_readings": 9756,
+    "excluded_unsupported_words": 4,
+    "data_bytes": 778235,
+    "arrays": {
+      "kKeys": {
+        "data_bytes": 218983,
+        "sha256": "854a8eeabc164de2d74f4eb0b395df3ac148e7957337553b7189018365f05462"
+      },
+      "kCandidates": {
+        "data_bytes": 352075,
+        "sha256": "56747c091b88d94a6f06b090df4546540d11f87a888cbc321422cb096be2a431"
+      },
+      "kGroups": {
+        "data_bytes": 207177,
+        "sha256": "4aab35cb90b13ba0e8335cc03ddd71adeef9b68d16817f705d64e8d2b10e91ad"
+      }
+    }
+  },
+  "generated_header_sha256": "5a5eb813d57dc4e6b352a900afd4dac490c7ae443162c796dca74f23f6293fb3",
+  "generated_implementation_sha256": "866073be6c41bb98d4a253fdee10657eac26ced6e3091bbb199d7c0aac44e236",
+  "selection_policy": "all efontCN_12-renderable single-character readings; descending frequency renderable words until 760 KiB; ties by pinyin/text",
+  "modifications": "UTF-8 compact records, concatenated key groups, retained syllable boundaries, per-syllable ue/ve aliases, efontCN_12 glyph filtering, frequency-pruned words; no manual phrases"
+}

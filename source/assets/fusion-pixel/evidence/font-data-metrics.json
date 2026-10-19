@@ -1,0 +1,39 @@
+{
+  "variant": "zh-interface-compat",
+  "glyphCount": 24025,
+  "fusionGlyphCount": 23845,
+  "efontSupplementGlyphs": 180,
+  "compressedDataBytes": 654185,
+  "compressedDataSha256": "6b6ecb63da33f40e18c8839a9a9909f823886f1baa40a736f19e178a8dba9eac",
+  "singleExternalDataDefinition": true,
+  "runtimeCodepointArray": false,
+  "headerSha256": "be16b723faa3cfdb833bd276af96cf13ddd72387138cf6506cec061d865b4183",
+  "sourceSha256": "605aa5fa06bf4287abeacdc349322132d919a80c6152739c59aff11abfc8e159",
+  "nominalPixels": 12,
+  "baseline": 10,
+  "originalFontMaxWidth": 28,
+  "originalFontMaxHeight": 22,
+  "originalFontYOffset": -7,
+  "excludedFusionBmpRanges": [
+    [
+      4352,
+      4607
+    ],
+    [
+      12592,
+      12687
+    ],
+    [
+      43360,
+      43391
+    ],
+    [
+      44032,
+      55215
+    ],
+    [
+      55216,
+      55295
+    ]
+  ]
+}

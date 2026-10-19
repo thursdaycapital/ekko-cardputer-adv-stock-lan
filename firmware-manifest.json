@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "releaseTag": "v9.0.0-dev.10-lan",
+  "firmwareVersion": "cardputer-adv-v9.0.0-dev.10-ram-lan",
+  "releaseChannel": "prerelease",
+  "publicRepository": "https://github.com/thursdaycapital/ekko-cardputer-adv-stock-lan",
+  "createdAtUtc": "2026-10-19T11:29:11.201212+00:00",
+  "application": {
+    "file": "firmware/ekko-stock-lan-update-0x10000.bin",
+    "bytes": 3284000,
+    "sha256": "e753a1b04f22b249c962ad9fb304a5f193a6cd067bf41deedf6654eb0d8b2fb5",
+    "offset": "0x10000",
+    "partitionBytes": 3342336,
+    "remainingPartitionBytes": 58336
+  },
+  "existingDualLayoutOnly": true,
+  "factoryOffset": "0x340000",
+  "factoryIncluded": false,
+  "nvsIncluded": false,
+  "fullFlashImage": false,
+  "remoteSupported": false,
+  "computerPatchRequired": false,
+  "compatibility": {
+    "officialStudioBaseline": "0.7.36",
+    "deviceTextAndVoiceUserConfirmedOn0736": true,
+    "officialStudio0737TextUserConfirmed": true,
+    "officialStudio0737VoiceRetested": false,
+    "agentCatalogCount": 16,
+    "isolatedHostAgentsWithRealReplies": 13,
+    "all16PhysicallyAccepted": false
+  },
+  "recording": {
+    "storage": "RAM IMA4",
+    "sdRequired": false,
+    "maximumSeconds": 5,
+    "fullFiveSecondAutoStopUserConfirmed": true,
+    "fullFiveSecondBytesIndependentlyObserved": false
+  },
+  "fullPhysicalAcceptanceMatrixComplete": false,
+  "arduinoCorrespondingSource": "source/arduino-esp32-2.0.17",
+  "relinkGuide": "RELINK.md",
+  "checksums": "SHA256SUMS.txt"
+}

@@ -1,0 +1,314 @@
+{
+  "pass": true,
+  "runtimeCandidateRecords": 38072,
+  "uniqueRuntimeCandidateCharacters": 6749,
+  "missingPinyinCharacters": [],
+  "candidateStringsAffected": 0,
+  "fixedUiLabelCount": 67,
+  "fixedUiUniqueCodepoints": 160,
+  "missingUiOrChatSymbolsCodepoints": [],
+  "uiLabels": [
+    {
+      "file": "src/CardputerHardware.cpp",
+      "text": "等待后台确认"
+    },
+    {
+      "file": "src/CardputerHardware.cpp",
+      "text": "原厂固件不可用"
+    },
+    {
+      "file": "src/CardputerHardware.cpp",
+      "text": "后台不支持或确认超时"
+    },
+    {
+      "file": "src/CardputerHardware.cpp",
+      "text": "后台拒绝此 Agent"
+    },
+    {
+      "file": "src/CardputerHardware.cpp",
+      "text": "选择发送失败"
+    },
+    {
+      "file": "src/CardputerHardware.cpp",
+      "text": "后台未确认选择"
+    },
+    {
+      "file": "src/CardputerHardware.cpp",
+      "text": "方向键选择"
+    },
+    {
+      "file": "src/CardputerHardware.cpp",
+      "text": "已选择"
+    },
+    {
+      "file": "src/CardputerHardware.cpp",
+      "text": "请在设备网页登录"
+    },
+    {
+      "file": "src/CardputerHardware.cpp",
+      "text": "正在打开对话"
+    },
+    {
+      "file": "src/CardputerHardware.cpp",
+      "text": "等待后台连接"
+    },
+    {
+      "file": "src/CardputerHardware.cpp",
+      "text": "OK 查看对话"
+    },
+    {
+      "file": "src/CardputerHardware.cpp",
+      "text": "缺图"
+    },
+    {
+      "file": "src/CardputerHardware.cpp",
+      "text": "方向选择  OK对话  Esc原厂"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "就绪"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "等待会话"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "浏览历史"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "Tab历史"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "中文 Ctrl+Space"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "英文 Ctrl+Space"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "← 加载更早消息"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "Tab历史 · 更早消息"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "↑ 前一段"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "↑ 前一段 · Fn+上"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "↓ 后续"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "↓ 后续 · Fn+下"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "片段缺失，请重新加载"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "→ 加载更新消息"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "Tab历史 · 更新消息"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "输入消息，开始对话"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "正在加载原生会话…"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "Tab输入 ;↑ .↓ ,← /→ R最新"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "输入消息…"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "Fn+空格说话"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "发送"
+    },
+    {
+      "file": "include/ChatRenderer.h",
+      "text": "无候选 · OK保留原文"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "网络断开"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "需要登录"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "验证登录"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "正在播放"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "恢复连接"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "连接后台"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "正在播放"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "确认选择"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "需更新"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "正在播放"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "正在录音"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "读取记录"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "同步会话"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "发送中"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "正在回复"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "就绪"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "正在识别"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "正在播放"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "正在执行"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "请求失败"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "已完成"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "已停止"
+    },
+    {
+      "file": "include/ChatStatus.h",
+      "text": "正在回复"
+    },
+    {
+      "file": "include/ChatSymbols.h",
+      "text": "[招手]"
+    },
+    {
+      "file": "include/ChatSymbols.h",
+      "text": "[微笑]"
+    },
+    {
+      "file": "include/ChatSymbols.h",
+      "text": "[汗笑]"
+    },
+    {
+      "file": "include/ChatSymbols.h",
+      "text": "[举手]"
+    },
+    {
+      "file": "include/ChatSymbols.h",
+      "text": "[敬礼]"
+    },
+    {
+      "file": "include/ChatSymbols.h",
+      "text": "[勾选]"
+    },
+    {
+      "file": "include/ChatSymbols.h",
+      "text": "[表情]"
+    },
+    {
+      "file": "new requested header",
+      "text": "中文 Ctrl+Space"
+    }
+  ],
+  "previousEfontCoverageCodepoints": 7545,
+  "missingPreviousEfontCoverage": [],
+  "allActualOriginalEfontGlyphsCovered": true,
+  "efontSupplementOriginalBbxAdvanceExact": true,
+  "efontSupplementBbxAdvanceMismatch": [],
+  "oversizedVerticalCellGlyphs": [
+    {
+      "codepoint": "U+3031",
+      "bbx": [
+        6,
+        22,
+        2,
+        -7
+      ],
+      "advance": 12,
+      "nativeCellTop": -5,
+      "nativeCellBottom": 17
+    },
+    {
+      "codepoint": "U+3032",
+      "bbx": [
+        9,
+        22,
+        2,
+        -7
+      ],
+      "advance": 12,
+      "nativeCellTop": -5,
+      "nativeCellBottom": 17
+    }
+  ],
+  "cjkOutsideNativeCell": 0,
+  "sourcePinyinDataSha256": "866073be6c41bb98d4a253fdee10657eac26ced6e3091bbb199d7c0aac44e236",
+  "note": "UI labels cover stable CardputerHardware, ChatRenderer, ChatStatus, ChatSymbols and requested Chinese Ctrl+Space; arbitrary new labels must be rechecked."
+}

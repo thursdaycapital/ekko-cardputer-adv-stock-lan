@@ -1,0 +1,52 @@
+{
+  "pass": true,
+  "glyphsCompared": 24025,
+  "pixelsCompared": 24601600,
+  "fusionGlyphs": 23845,
+  "originalEfontGlyphs": 180,
+  "originalEfontSourcePixelsMatch": true,
+  "originalCombinedBdfPixelsAndAdvanceExact": true,
+  "mismatches": [],
+  "compilerWarnings": 0,
+  "sanitizers": [
+    "address",
+    "undefined"
+  ],
+  "m5gfxVersion": "0.2.33",
+  "m5gfxFontCppSha256": "96af704ff6537ad9851e2979bccc8f24f5878cd8616e86c9d7b3468ee45f4b18",
+  "exactMethodBodiesCompiled": [
+    "IFont::drawCharDummy",
+    "U8g2font::getGlyph",
+    "U8g2font::getDefaultMetric",
+    "U8g2font::updateFontMetric",
+    "U8g2font::drawChar",
+    "u8g2_font_decode_t"
+  ],
+  "methodSourceExcerptSha256": "3c1580fe70b25ab93ed0b05a7435c4d616d58a5acf5b934d830763b70301c431",
+  "nativeMetrics": {
+    "width": 12,
+    "x_advance": 12,
+    "height": 12,
+    "y_advance": 12,
+    "baseline": 10,
+    "y_offset": -10,
+    "x_offset": 0
+  },
+  "outlierLocalDrawMetricAdjustment": {
+    "codepoints": [
+      "U+3031",
+      "U+3032"
+    ],
+    "y_offset": -15,
+    "baselinePositionUnchanged": true,
+    "reason": "Original method unsigned local row overflows for negative yoffset; original pixels preserved after adjustment"
+  },
+  "offscreenSurface": "64x64, LGFXBase drawing and color conversion only are replaced with memory sink",
+  "actualHeaderAndCppCompiled": true,
+  "sharedKDataSha256": "6b6ecb63da33f40e18c8839a9a9909f823886f1baa40a736f19e178a8dba9eac",
+  "decodedRecordsSha256": "02bf5e58368d3c8986b642db28277b7fcee71439ffd6a649dd1887eee67c6ee4",
+  "limitations": [
+    "Host-only memory sink; physical LCD and full application layout remain separate checks.",
+    "Full unclipped original glyphs validated here; root task separately validates native12 vertical clip."
+  ]
+}

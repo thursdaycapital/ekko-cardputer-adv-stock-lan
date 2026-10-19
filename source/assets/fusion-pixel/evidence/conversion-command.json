@@ -1,0 +1,15 @@
+[
+  "upstream/u8g2-bdfconv-2.36.18/bdfconv",
+  "-b",
+  "0",
+  "-f",
+  "1",
+  "-v",
+  "-m",
+  "0-65535",
+  "./EkkoPixel12Compatible.bdf",
+  "-n",
+  "ekko_fusion_pixel12_compatible_data",
+  "-o",
+  "./EkkoPixel12Compatible.c"
+]

@@ -1,0 +1,28 @@
+{
+  "pass": true,
+  "glyphsCompared": 24025,
+  "pixelsCompared": 9225600,
+  "mismatches": [],
+  "nativeHeight": 12,
+  "nativeBaseline": 10,
+  "layoutMetricRestoredAfterDrawing": true,
+  "rasterMetrics": "Unmodified base U8g2font::getDefaultMetric => height22,y_offset-15,baseline15",
+  "method": "Intersect 12px caller native cell with parent clip, draw original M5GFX method using original global raster metrics, restore caller clip",
+  "originalM5gfxMethodSourceSha256": "3c1580fe70b25ab93ed0b05a7435c4d616d58a5acf5b934d830763b70301c431",
+  "actualDataHeaderAndCppCompiled": true,
+  "codepointSpecialCases": false,
+  "maxRequestedRectangleHeight": 22,
+  "oversizedUnsignedRectangleObserved": false,
+  "pixelsOutsideNative12Cell": 0,
+  "compilerWarnings": 0,
+  "sanitizers": [
+    "address",
+    "undefined"
+  ],
+  "decodedRecordsSha256": "e9265f1bf3b11cd81f08f87a6eb787c222d08e93a636be744d2ef3d91b8a5771",
+  "diagnostic": "max requested height 22; no pixels outside native cell\n",
+  "limitations": [
+    "Host memory drawing sink, not physical LCD.",
+    "General raster-metric strategy tested; parent task must test its final clip-restore implementation."
+  ]
+}

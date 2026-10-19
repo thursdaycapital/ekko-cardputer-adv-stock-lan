@@ -1,0 +1,35 @@
+{
+  "checkedAtUtc": "2026-10-19T09:12:50.547767+00:00",
+  "installedOfficialAppVersion": "0.7.37",
+  "officialEntrySha256": "4060486285a2f22b5e8efe5fbebd008c657553c8716613a3e2fe0002c52d56d6",
+  "matchesSignedResource": true,
+  "serverProcessStartedLocal": "2026-10-19 17:03:15 Asia/Shanghai",
+  "previousUserTextAndVoiceConfirmationBeforeUpdate": true,
+  "firmware": "cardputer-adv-v9.0.0-dev.10-ram-lan",
+  "uptime_ms": 1994599,
+  "connection": {
+    "transport": "lan-standard",
+    "namespace_ready": true,
+    "management_online": true,
+    "http_port": 8748,
+    "saved_binding_matches": true
+  },
+  "agentId": "ekko-agent",
+  "chat": {
+    "ready": true,
+    "accepted": 1,
+    "received_chunks": 9,
+    "messages": 3,
+    "sending": false,
+    "send_unknown": false
+  },
+  "memory": {
+    "free_heap": 111752,
+    "min_free_heap": 19428,
+    "max_alloc_heap": 94196
+  },
+  "freshMessageOrVoiceAfterUpdateTested": false,
+  "actualNewOfficialServerTcpPeerMatchesDevice": true,
+  "originalDeviceUptimeContinues": true,
+  "manualDeviceLoginRequestedDuringAppUpdate": false
+}

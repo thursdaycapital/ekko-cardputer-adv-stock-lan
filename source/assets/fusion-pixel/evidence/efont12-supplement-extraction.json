@@ -1,0 +1,2176 @@
+{
+  "officialM5gfxVersion": "0.2.33",
+  "sourceCFileSha256": "ceb7bae98279b5b196a4742b0814970d095ddcaabea8a9ac3cebe1e1f7add873",
+  "originalFontDataBytes": 213444,
+  "actualOriginalFontGlyphs": 7545,
+  "supplementGlyphs": 180,
+  "method": "Official U8g2 2.36.18 runtime decoder, original BBX/advance and rendered pixels; no scaling",
+  "sanitizers": [
+    "address",
+    "undefined"
+  ],
+  "glyphs": [
+    {
+      "codepoint": "U+0000",
+      "character": "\u0000",
+      "bbx": [
+        5,
+        7,
+        1,
+        0
+      ],
+      "advance": 6,
+      "raster32Sha256": "ed94e8e3f7d2947be7616550b4a8fdfbebbdaa2a26c26f29a4d9d350e900fe18"
+    },
+    {
+      "codepoint": "U+02C7",
+      "character": "ˇ",
+      "bbx": [
+        3,
+        2,
+        2,
+        7
+      ],
+      "advance": 6,
+      "raster32Sha256": "548c49f40a5a68e2064302e70d9b34f75d1e8c6f309bb68f4b243d125ee13361"
+    },
+    {
+      "codepoint": "U+02C9",
+      "character": "ˉ",
+      "bbx": [
+        4,
+        1,
+        2,
+        7
+      ],
+      "advance": 6,
+      "raster32Sha256": "872869ea186269fef3b456b76fcc23be49e2921dd98e247a84de36b9e8a3da25"
+    },
+    {
+      "codepoint": "U+02CA",
+      "character": "ˊ",
+      "bbx": [
+        2,
+        2,
+        3,
+        6
+      ],
+      "advance": 6,
+      "raster32Sha256": "af8210eddbffd1f66ba2f813d94a80c59b911319b0943e036860299922e62038"
+    },
+    {
+      "codepoint": "U+02CB",
+      "character": "ˋ",
+      "bbx": [
+        2,
+        2,
+        3,
+        6
+      ],
+      "advance": 6,
+      "raster32Sha256": "bc6b2270e191ecf3e7fff6cc627c98a4e747d2bc909aeabe89fb1c80352eecf9"
+    },
+    {
+      "codepoint": "U+02D9",
+      "character": "˙",
+      "bbx": [
+        1,
+        1,
+        3,
+        7
+      ],
+      "advance": 6,
+      "raster32Sha256": "6f43997e02e8e372a7110656bce60c650c9afdf2b98da7fd6f278bc9b61c58ea"
+    },
+    {
+      "codepoint": "U+2208",
+      "character": "∈",
+      "bbx": [
+        5,
+        7,
+        1,
+        0
+      ],
+      "advance": 6,
+      "raster32Sha256": "23898df62dbaa2c6b2b07689f6c77177a527dd444ebf766a72ce5df01e726d19"
+    },
+    {
+      "codepoint": "U+220F",
+      "character": "∏",
+      "bbx": [
+        6,
+        9,
+        0,
+        -1
+      ],
+      "advance": 6,
+      "raster32Sha256": "6d9df9c23a1dc1a7d6609efb5821cc468a692e31ae4e8db7b332ec438e19e1b6"
+    },
+    {
+      "codepoint": "U+2211",
+      "character": "∑",
+      "bbx": [
+        5,
+        9,
+        1,
+        -1
+      ],
+      "advance": 6,
+      "raster32Sha256": "67e73c3cd1f093f0c0e41db7e9563e702673e2ac1ef1b291bcd1856987119da9"
+    },
+    {
+      "codepoint": "U+221A",
+      "character": "√",
+      "bbx": [
+        6,
+        11,
+        0,
+        -2
+      ],
+      "advance": 6,
+      "raster32Sha256": "b2c0717eaa9f3edfe34255459cc69b5d61345e80582e4b797ffc477b1dd7bf2b"
+    },
+    {
+      "codepoint": "U+221D",
+      "character": "∝",
+      "bbx": [
+        5,
+        4,
+        1,
+        1
+      ],
+      "advance": 6,
+      "raster32Sha256": "ca87fa0a3c6227b6fe2d772867b5792e757273211f66d15590cd9667ebab800a"
+    },
+    {
+      "codepoint": "U+221E",
+      "character": "∞",
+      "bbx": [
+        5,
+        4,
+        1,
+        1
+      ],
+      "advance": 6,
+      "raster32Sha256": "d506f0b0a6f5e730f9a0e726e753daa05597837cb29a651e07b98fc9065a9472"
+    },
+    {
+      "codepoint": "U+2220",
+      "character": "∠",
+      "bbx": [
+        5,
+        5,
+        1,
+        1
+      ],
+      "advance": 6,
+      "raster32Sha256": "7ed767cb2e40dbfc90e384dcf4514e4cdeec24217a61f34cd935c227810d279b"
+    },
+    {
+      "codepoint": "U+2225",
+      "character": "∥",
+      "bbx": [
+        3,
+        9,
+        2,
+        -1
+      ],
+      "advance": 6,
+      "raster32Sha256": "f7d713d634f3454f4cddc80a85fa55cdb370b3aa209cab5c1fb4010dbf3bd564"
+    },
+    {
+      "codepoint": "U+2227",
+      "character": "∧",
+      "bbx": [
+        5,
+        5,
+        1,
+        0
+      ],
+      "advance": 6,
+      "raster32Sha256": "04af829e540e1089a4ce633a47231a4e3dc3f14e4153ac28b12715bd41232ced"
+    },
+    {
+      "codepoint": "U+2228",
+      "character": "∨",
+      "bbx": [
+        5,
+        5,
+        1,
+        0
+      ],
+      "advance": 6,
+      "raster32Sha256": "fd85fa0bec665ad0e959c27f5a524d56c7933cdec021915bcf6e09ff47a2bba0"
+    },
+    {
+      "codepoint": "U+2229",
+      "character": "∩",
+      "bbx": [
+        5,
+        5,
+        1,
+        0
+      ],
+      "advance": 6,
+      "raster32Sha256": "5283f219e806f3c17a4526b5ebb1e2dc2cc52fa7bb67f87e189279da9ce0d9ce"
+    },
+    {
+      "codepoint": "U+222A",
+      "character": "∪",
+      "bbx": [
+        5,
+        5,
+        1,
+        0
+      ],
+      "advance": 6,
+      "raster32Sha256": "dea0c4a46d5d3902d0a588bf7c8ec32bd2e83c87118835f78119b7806ed153ec"
+    },
+    {
+      "codepoint": "U+222B",
+      "character": "∫",
+      "bbx": [
+        5,
+        10,
+        1,
+        -1
+      ],
+      "advance": 6,
+      "raster32Sha256": "7518bf5f66fbad2cd5ced5d450980167f97f243ccc911719e099f90eeb243d8c"
+    },
+    {
+      "codepoint": "U+222E",
+      "character": "∮",
+      "bbx": [
+        5,
+        10,
+        1,
+        -1
+      ],
+      "advance": 6,
+      "raster32Sha256": "646a89f6d871efb80ae2ed359e422d7b807354d5755ccc2e6a3dc2ee385c2438"
+    },
+    {
+      "codepoint": "U+2234",
+      "character": "∴",
+      "bbx": [
+        4,
+        8,
+        1,
+        0
+      ],
+      "advance": 6,
+      "raster32Sha256": "84c9f67f703b3ec8f69488ae928458db94969864e9e5944645cd3ef14848d3b0"
+    },
+    {
+      "codepoint": "U+2235",
+      "character": "∵",
+      "bbx": [
+        5,
+        8,
+        0,
+        0
+      ],
+      "advance": 6,
+      "raster32Sha256": "9c03babab3e563484f4a9bf1e6a51d414f4857e3c059a64d70b2ec76099cddae"
+    },
+    {
+      "codepoint": "U+2236",
+      "character": "∶",
+      "bbx": [
+        1,
+        5,
+        2,
+        2
+      ],
+      "advance": 6,
+      "raster32Sha256": "1f6f0b4bd262b8676eb15bba7ae7f129a9c23e81542c862bf8d4c015813477d3"
+    },
+    {
+      "codepoint": "U+2237",
+      "character": "∷",
+      "bbx": [
+        4,
+        7,
+        1,
+        1
+      ],
+      "advance": 6,
+      "raster32Sha256": "8c18316aef3d2a475048cf2c70d77af63878f239e98bb9c4f43024908d3d5994"
+    },
+    {
+      "codepoint": "U+223D",
+      "character": "∽",
+      "bbx": [
+        6,
+        6,
+        0,
+        1
+      ],
+      "advance": 6,
+      "raster32Sha256": "40a977f7695d924cafbf25de5b40d5bb1d45102f55aa0dbd7b4d720b330dae53"
+    },
+    {
+      "codepoint": "U+2248",
+      "character": "≈",
+      "bbx": [
+        5,
+        6,
+        1,
+        0
+      ],
+      "advance": 6,
+      "raster32Sha256": "2a3cbefa0ac3b2b360f10b192750acf3777cd941cb752f878bb4dfb92b5ec7c5"
+    },
+    {
+      "codepoint": "U+224C",
+      "character": "≌",
+      "bbx": [
+        6,
+        9,
+        0,
+        0
+      ],
+      "advance": 6,
+      "raster32Sha256": "7ef4da4827f0e290394c384697d5ac2e1abff4cf176d598904cc3bee08b176c1"
+    },
+    {
+      "codepoint": "U+2260",
+      "character": "≠",
+      "bbx": [
+        5,
+        7,
+        1,
+        0
+      ],
+      "advance": 6,
+      "raster32Sha256": "6dac8f4a55e8711bb1504dd901eed81b5397b7f5df1071ecb21f62bdf8f5815b"
+    },
+    {
+      "codepoint": "U+2261",
+      "character": "≡",
+      "bbx": [
+        5,
+        5,
+        1,
+        1
+      ],
+      "advance": 6,
+      "raster32Sha256": "d805220277dd8e0853ef0e46c0f7068ff2b8afc81e78a9f1adc021e1df3e1120"
+    },
+    {
+      "codepoint": "U+2264",
+      "character": "≤",
+      "bbx": [
+        5,
+        7,
+        1,
+        0
+      ],
+      "advance": 6,
+      "raster32Sha256": "9aa338caf19e8a3acabc053cadd92d2401db682f55548da7c0c8e2afa68178b7"
+    },
+    {
+      "codepoint": "U+2265",
+      "character": "≥",
+      "bbx": [
+        5,
+        7,
+        1,
+        0
+      ],
+      "advance": 6,
+      "raster32Sha256": "c913f02d4cec0331a4a3dab160280f18852e61918cd048ef2c5a393fccce810b"
+    },
+    {
+      "codepoint": "U+226E",
+      "character": "≮",
+      "bbx": [
+        5,
+        9,
+        0,
+        0
+      ],
+      "advance": 6,
+      "raster32Sha256": "3f7f762a0a0559ccdb324fb959a4131c361feb1a871370fe30b54029c3a06d4b"
+    },
+    {
+      "codepoint": "U+226F",
+      "character": "≯",
+      "bbx": [
+        5,
+        10,
+        1,
+        -1
+      ],
+      "advance": 6,
+      "raster32Sha256": "333909977dc906d2fa0a350ef44aa4d197ef295b1512e7d2c0c597d837c25024"
+    },
+    {
+      "codepoint": "U+2299",
+      "character": "⊙",
+      "bbx": [
+        5,
+        5,
+        1,
+        1
+      ],
+      "advance": 6,
+      "raster32Sha256": "e3bfabd2c43e211eb2b7b6bbbc184e32fdc53ff1cb62cf151cf40e77e79801ac"
+    },
+    {
+      "codepoint": "U+22A5",
+      "character": "⊥",
+      "bbx": [
+        5,
+        7,
+        1,
+        0
+      ],
+      "advance": 6,
+      "raster32Sha256": "d1454044d5557458166126eb77f28cb1dd9a27ab3f5b03f4850af53d80bb9a59"
+    },
+    {
+      "codepoint": "U+5290",
+      "character": "劐",
+      "bbx": [
+        10,
+        12,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "657cf358c040f930cba4ee0593fee15761a1490c4daa1037527fcbd4960ffceb"
+    },
+    {
+      "codepoint": "U+5523",
+      "character": "唣",
+      "bbx": [
+        10,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "3014db6aa37e0b7809b6aa98f6fd3a5282c7404e00351e7c66f983900bcf0319"
+    },
+    {
+      "codepoint": "U+55CD",
+      "character": "嗍",
+      "bbx": [
+        10,
+        12,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "b40d420904bcc87ca42eca4b077ef79202bab4e21f332eaa12cb0657b436ffe6"
+    },
+    {
+      "codepoint": "U+57A1",
+      "character": "垡",
+      "bbx": [
+        11,
+        11,
+        0,
+        -1
+      ],
+      "advance": 12,
+      "raster32Sha256": "7ea9f8bafbce56e7f1e52586f510ca1d24db015507e676f354c1aed2eaf7f985"
+    },
+    {
+      "codepoint": "U+589A",
+      "character": "墚",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "33c2cb56ab5c4a31ea37429aaecf25cd39da5fd4eaaa2972c239a97f8ea5060b"
+    },
+    {
+      "codepoint": "U+58BC",
+      "character": "墼",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "582daa5cb1e6ed322708aa5fcc1facfb94aa226295811b95dd5cb96e286ab4cd"
+    },
+    {
+      "codepoint": "U+5A08",
+      "character": "娈",
+      "bbx": [
+        11,
+        11,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "7bb09062fa609deb903ca215c882a360ef8e1ada1b14477d5039ec838bd7f4fd"
+    },
+    {
+      "codepoint": "U+5AB5",
+      "character": "媵",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "8b39b37ba83cfd806946125a11a768c5f70962d37e6fdc865cfc198971b6a145"
+    },
+    {
+      "codepoint": "U+5AE0",
+      "character": "嫠",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "f9622fab4fa5a9e2b27701e47d59c014fd82dc47d9a06b7dfdf3db2a04db1def"
+    },
+    {
+      "codepoint": "U+5B37",
+      "character": "嬷",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "56b63a9e334dff8f46a2c3a1ac6631b25a21d5dca149b22be8ddfe3be17699ea"
+    },
+    {
+      "codepoint": "U+5C1C",
+      "character": "尜",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "ae82303be8dcedde406c07c42ef38bc2a7e624da7294c0a4c0db1564f2579bc8"
+    },
+    {
+      "codepoint": "U+5CC1",
+      "character": "峁",
+      "bbx": [
+        10,
+        12,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "fffc85f86f03cc0c530501edca9e7960126f017588ff048cd0fa3942a4ae328e"
+    },
+    {
+      "codepoint": "U+5D74",
+      "character": "嵴",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "fd181c37af1b3fc6dd57a76c78e9d73a1706e027c824568f5dfd0588ce664fa2"
+    },
+    {
+      "codepoint": "U+5E8B",
+      "character": "庋",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "59b030bf2aabf5a976b977946d526f8b65bf3cc3c0c47596dfd659918efb2273"
+    },
+    {
+      "codepoint": "U+5EA5",
+      "character": "庥",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "e0e05969208fbb2693f58b12b2b2f3f6f5dc2eded8fd621ac691a58a4d6b90b9"
+    },
+    {
+      "codepoint": "U+5F40",
+      "character": "彀",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "50dbb3216fb5dfcb0a6279706c5e21bea5ef4bc7db51a6343e84b970cd4a251e"
+    },
+    {
+      "codepoint": "U+5F58",
+      "character": "彘",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "61aae94f341db5227e66d733521b0ddf9844a9de592bb7e0cd518fd5d96b5cec"
+    },
+    {
+      "codepoint": "U+605D",
+      "character": "恝",
+      "bbx": [
+        10,
+        11,
+        2,
+        -1
+      ],
+      "advance": 12,
+      "raster32Sha256": "cde98f25b41cb2a95c6069fec1a8d28301897b54d0283f2f8402d73e740d2687"
+    },
+    {
+      "codepoint": "U+60AB",
+      "character": "悫",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "4b856d848c5a32c41480d702385f5f26fa35848c6f40cbf9b42a3ac1e09aec78"
+    },
+    {
+      "codepoint": "U+63FF",
+      "character": "揿",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "bba958e69c5b2505b5108399ac346233ed1322db65807ee61a34d600446da4fa"
+    },
+    {
+      "codepoint": "U+6420",
+      "character": "搠",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "816f2a6d9fba1ebddeecff2beb7afb2cd0eade4b587c95cdff6c2a04fd74b01d"
+    },
+    {
+      "codepoint": "U+679E",
+      "character": "枞",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "1d0b3da62149b9755ff16a364d5efe2306e331ff05c62d5e2bbe58c5e65348f9"
+    },
+    {
+      "codepoint": "U+683E",
+      "character": "栾",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "8b13f22054ca9ef7187bf18eccf1fe53f04221264a5767cb4af363aec9c2fc43"
+    },
+    {
+      "codepoint": "U+684A",
+      "character": "桊",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "8ab7178fd07dba6dd8b3027543578e903c05f1283f58c467eb8b30e6538b0551"
+    },
+    {
+      "codepoint": "U+68FC",
+      "character": "棼",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "326e9c1856a49667a289dd9a179091f62e76d8d09f56ce35bce6d85df2f02429"
+    },
+    {
+      "codepoint": "U+6A7C",
+      "character": "橼",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "f2082b3f6bdd489c2a6182766b19c9939e77def2c9785227ad91c8b46be53ee8"
+    },
+    {
+      "codepoint": "U+6BC2",
+      "character": "毂",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "42e1be9cc721870cb980beb3e55a30267b8b02442d4afe87f45aac466426d2e3"
+    },
+    {
+      "codepoint": "U+6CB2",
+      "character": "沲",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "aa043eeeb603b5b8203a1426cddb8b2dc8e9ef897a95383c1bbc50704daf9c98"
+    },
+    {
+      "codepoint": "U+6CD0",
+      "character": "泐",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "f0ca70f4258e0e6cdbf1b1d414ca171b2d0dafe91d912bfbdec4374bd78d51d8"
+    },
+    {
+      "codepoint": "U+6E53",
+      "character": "湓",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "1aece0da5691bf3bec055383a4e03d32352521b4f8c7ca9bc1f51caddfe87dd2"
+    },
+    {
+      "codepoint": "U+6E86",
+      "character": "溆",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "55045baa05345e37ae408ab81d4ab9d9294c830e97fd3f3dd38caeb0c86ac484"
+    },
+    {
+      "codepoint": "U+6EF9",
+      "character": "滹",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "f7715344e2c985e0e8cf791aab471a5f82c7e9f67ddc0b7b1ac825a5df3372e9"
+    },
+    {
+      "codepoint": "U+6F2D",
+      "character": "漭",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "f05afad8523d2a651cdb9f3e10f2092b0b5cfba6a76a54f3d89819426c56061e"
+    },
+    {
+      "codepoint": "U+70B1",
+      "character": "炱",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "8b7e221627764bef05ee754490bcf721893b9a717a269704edc1c65c92c8e2fa"
+    },
+    {
+      "codepoint": "U+7266",
+      "character": "牦",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "5bb70c724cb001febba4441ae7bbb1eca60d313feeb514c3ff549d81ed5af42d"
+    },
+    {
+      "codepoint": "U+72F4",
+      "character": "狴",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "d4e08e32082f5be4af4dd55a098cd68e195115d2e761ae8a7717b7e6e0ed0c7c"
+    },
+    {
+      "codepoint": "U+72FB",
+      "character": "狻",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "2347fcc6acfc937b408594cd94e5ac6e28029f6976198bb1637f623673f35189"
+    },
+    {
+      "codepoint": "U+7481",
+      "character": "璁",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "3b3f08c8690003553dca3f9118dd235e067af0157811a5fa33ab63095fde0129"
+    },
+    {
+      "codepoint": "U+7619",
+      "character": "瘙",
+      "bbx": [
+        11,
+        11,
+        1,
+        -1
+      ],
+      "advance": 12,
+      "raster32Sha256": "f63bcdc7559dddb905404cfa1afbabeef46a7d5c6c6674d36ee1d8a6d725f8bb"
+    },
+    {
+      "codepoint": "U+761B",
+      "character": "瘛",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "cf390229be90e0fbca73afc3d0df929b809ae208ec4886998ad601cd63426d39"
+    },
+    {
+      "codepoint": "U+764D",
+      "character": "癍",
+      "bbx": [
+        11,
+        11,
+        0,
+        -1
+      ],
+      "advance": 12,
+      "raster32Sha256": "f70bd64825fc71d6cc031caf676603e7201b3627ce545317bd44095b6bc04435"
+    },
+    {
+      "codepoint": "U+7743",
+      "character": "睃",
+      "bbx": [
+        10,
+        12,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "5fbd269cdd7d1ab499f11f6932afcf9fbcdfc6f4b8ebe3e88fd8a76fcdc65f19"
+    },
+    {
+      "codepoint": "U+78D9",
+      "character": "磙",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "802ed2ea31421bf93f9f82a14d4e6bde4df81d7a77dbc4f0df7a6dc90baf442b"
+    },
+    {
+      "codepoint": "U+79ED",
+      "character": "秭",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "b65c27cc8ff5b442170dbf80c6bb125b1cb4541f88e4b3b3b27624646760f535"
+    },
+    {
+      "codepoint": "U+7A78",
+      "character": "穸",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "a0584ca337061879f4956020779b6da4c15e49ded722b0ed64dd15a38d42ff40"
+    },
+    {
+      "codepoint": "U+7A80",
+      "character": "窀",
+      "bbx": [
+        11,
+        11,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "259450c6df30eb85b12267d6d91219c304da351687ef79a6140ead04fccf1f0b"
+    },
+    {
+      "codepoint": "U+7B2B",
+      "character": "笫",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "18ad6357f2929a27bfbbab48b652f533129af907bb34406ed4d5e06771e58709"
+    },
+    {
+      "codepoint": "U+7B3E",
+      "character": "笾",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "19f2dd04cb1227a45f3d7f93cc345b34690de832b4701f843662a5c3e9fdb86a"
+    },
+    {
+      "codepoint": "U+7B47",
+      "character": "筇",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "fd485224410a89dff1eb54706375628901e700bd8df81682fe6d9ce3eff17107"
+    },
+    {
+      "codepoint": "U+7B58",
+      "character": "筘",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "c4d096403334b2bfca918bfa6fd76d7fa2fbfdcc277ac8b423f56bfac6345658"
+    },
+    {
+      "codepoint": "U+7BFC",
+      "character": "篼",
+      "bbx": [
+        10,
+        12,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "a7902403b2c928a0abb2fe5d20affb72bd2c35414a859ee2b73fa5cccc53ce2e"
+    },
+    {
+      "codepoint": "U+7C0B",
+      "character": "簋",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "d72765f018dd84ce1dba6f41eff9593bdcbaf070fa4fe9d7b81ecbfb7858d9b6"
+    },
+    {
+      "codepoint": "U+7C0F",
+      "character": "簏",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "deec9997f9ce90b63734ab7cdb81eaa435931022aac438215f9a19cc75d549b8"
+    },
+    {
+      "codepoint": "U+7D77",
+      "character": "絷",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "11f9cb9080ce4e3a599a16d86aa29407c3189258428c808e055849d3554bf5de"
+    },
+    {
+      "codepoint": "U+7E47",
+      "character": "繇",
+      "bbx": [
+        11,
+        11,
+        1,
+        -1
+      ],
+      "advance": 12,
+      "raster32Sha256": "bd393d122a3980047723ad5e982d0a3147782b46e21e6b0d2d2e627cd2aa18d6"
+    },
+    {
+      "codepoint": "U+7EA8",
+      "character": "纨",
+      "bbx": [
+        10,
+        12,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "99aa0c811df277b63b65a121d521f7e61b1b6fa41aef88b4cf4b16ad91a4066e"
+    },
+    {
+      "codepoint": "U+7F7E",
+      "character": "罾",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "360b999f4c9d048aa7ac410cf02cd0a7514924a5ea8a8f7d0a04deee2df312bb"
+    },
+    {
+      "codepoint": "U+8031",
+      "character": "耱",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "f2caf97fd061f8520f8e3748baf2adca1879607b3638c0c5ece55757fd8c6a1c"
+    },
+    {
+      "codepoint": "U+810E",
+      "character": "脎",
+      "bbx": [
+        11,
+        11,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "1617c00f6a2c50ad516e208d200f61d88e8a019f7070b9737f93ba7135e5fc98"
+    },
+    {
+      "codepoint": "U+8114",
+      "character": "脔",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "4223a058aeddcbf70523b44fb317394753ed7cd1498718c904b59f1585315580"
+    },
+    {
+      "codepoint": "U+82AA",
+      "character": "芪",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "df4d2551bedc3d2db9c95a9cb3f93b03015fcdc7050b3970eff5eeb024b328f2"
+    },
+    {
+      "codepoint": "U+82C1",
+      "character": "苁",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "a5e3665ab4a1c9b0e22edbb9c6b9a82be7b1c0677e53d9d956ffff965e09637b"
+    },
+    {
+      "codepoint": "U+8308",
+      "character": "茈",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "69e7ebbc68c747ff3a06e500ba253c422f147b66484236fe56155c488ab3984b"
+    },
+    {
+      "codepoint": "U+831A",
+      "character": "茚",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "c38cba775044a6c06b63da5a2a7ec7e40c9a8e6bcd349c263c58a2ce476a5237"
+    },
+    {
+      "codepoint": "U+8333",
+      "character": "茳",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "d80eb1e5391562ca28074f127df8d795b7d737324ad941886d649212358a7649"
+    },
+    {
+      "codepoint": "U+839C",
+      "character": "莜",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "cf70c202c7e6b38e23d47aea8befaed087115fc69cab75575f8d1f123b1c0951"
+    },
+    {
+      "codepoint": "U+83B0",
+      "character": "莰",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "0a3c63c025086a5d6ef00948679df65d813222282cb77e095db1bd77030cce74"
+    },
+    {
+      "codepoint": "U+83B8",
+      "character": "莸",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "f947037e5a4b8293f042d393a635964003147f99c8408c748ed5cdc7d32d1faa"
+    },
+    {
+      "codepoint": "U+83BC",
+      "character": "莼",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "f7bfef653e83dabb9cd1adf50bd1ebc3d78b31fc3ce5ba427b9dc6ec51d2c1f4"
+    },
+    {
+      "codepoint": "U+83DD",
+      "character": "菝",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "68380dd6639712cc4a41a3f0d2ce36510dd69cc81715ae4a1f93b3a6833a7474"
+    },
+    {
+      "codepoint": "U+83EA",
+      "character": "菪",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "c6643349846ed1e49f0585a97bbb417f566eb54de86cb7f563bde8bf3c11b6f1"
+    },
+    {
+      "codepoint": "U+840F",
+      "character": "萏",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "fe28965ba06f1f9e5032a434cba31e1b6bf4d7da946ee1aec240122457c697f1"
+    },
+    {
+      "codepoint": "U+8411",
+      "character": "萑",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "805c0da64b38d1cc93bed5abfab074a4035c775f1dcb965490ecc8be0c1d3668"
+    },
+    {
+      "codepoint": "U+841C",
+      "character": "萜",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "d6e8be36c06a625cc7c83f90a98227c69bf67051fc6c455f3550ab29ee7cdd33"
+    },
+    {
+      "codepoint": "U+845C",
+      "character": "葜",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "3937dca58a7ab1cc801644ec744f6b3da7bf71e00a9d628b3e66435b27b13c5c"
+    },
+    {
+      "codepoint": "U+8497",
+      "character": "蒗",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "af87d16a0a7572834866c724613bc87cab94033ea352f342aa8e329f815f4a5d"
+    },
+    {
+      "codepoint": "U+84E5",
+      "character": "蓥",
+      "bbx": [
+        11,
+        11,
+        0,
+        -1
+      ],
+      "advance": 12,
+      "raster32Sha256": "2639876e863ed82ac69bf135203d572da30d1f7a1f05f5dd460d1b0c288cf1a8"
+    },
+    {
+      "codepoint": "U+8538",
+      "character": "蔸",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "ca3fca0698026ee9f83ae0b13788103dbf94be3d43e82b3929efeb059757bd77"
+    },
+    {
+      "codepoint": "U+8579",
+      "character": "蕹",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "e942f6568e71cca1fecab27abeab3b8d9b11019f7088628d316b5eefc93b64ca"
+    },
+    {
+      "codepoint": "U+8627",
+      "character": "蘧",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "8759ced156050de5da13d68dce16843f6b04cf1353088bb038801472c658db8f"
+    },
+    {
+      "codepoint": "U+863C",
+      "character": "蘼",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "f8101f3583b3c32d56100561b1a2246ce0d8aa3f7dc9c882d144ef1e8d0759c4"
+    },
+    {
+      "codepoint": "U+869D",
+      "character": "蚝",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "4a0e72c2330dea6dfafb84bdb71136d38de2edf7b37093b4fbc57a7b54653553"
+    },
+    {
+      "codepoint": "U+881B",
+      "character": "蠛",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "0ec7624478967dd74a6c43de16079f35e58b387c3e2976938216aff359d25cb8"
+    },
+    {
+      "codepoint": "U+886E",
+      "character": "衮",
+      "bbx": [
+        11,
+        11,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "77e9f457cd22cc4ddd48efd8da752e63f2199476d02e60f82c9d6e3c38b260dd"
+    },
+    {
+      "codepoint": "U+8930",
+      "character": "褰",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "a9db3eae1c8adcd42110f9d96ff9d6ec29b4bf9db0e9f6ceae43d29ea24bd614"
+    },
+    {
+      "codepoint": "U+897B",
+      "character": "襻",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "8a048e89a5c923e2a687dedb522d0e13c5a781b1f0f0038547ca812b67a26c49"
+    },
+    {
+      "codepoint": "U+89F3",
+      "character": "觳",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "c205a8a699da967159785ebf9da6d11e09a5ca1b18ca2f0bd14f8d16f9dd6585"
+    },
+    {
+      "codepoint": "U+8C18",
+      "character": "谘",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "c4fa5902dab5386421fe35ed0be2c81cb4d5f12d5e8fe4b1a78811299688d7fe"
+    },
+    {
+      "codepoint": "U+8C21",
+      "character": "谡",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "a66863b3a89e613328a27ecf3626e3da324987d8d908504a8767d2483ec3719a"
+    },
+    {
+      "codepoint": "U+8C2E",
+      "character": "谮",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "c356bd46feaf6ef7c688676dd914c59e37d1fa0aa19b46d63b2854d55aad4e60"
+    },
+    {
+      "codepoint": "U+8D3D",
+      "character": "贽",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "2127c1ff06116aa832c46d1d919eabcf986a053e47d3f7d01626963c35220145"
+    },
+    {
+      "codepoint": "U+8D40",
+      "character": "赀",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "12735d85ed36fc488432771d08d5ed08ef81f8c439da15f349cd765961f17e65"
+    },
+    {
+      "codepoint": "U+8D55",
+      "character": "赕",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "6ac662bf09d69e64b56767d4d60beceed3afc0087a47664989c07486d384be6b"
+    },
+    {
+      "codepoint": "U+8D5D",
+      "character": "赝",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "711ec920ea54d51d52099ebbadc866f317b95bbacaa2c573057e4dde3149eeac"
+    },
+    {
+      "codepoint": "U+8D91",
+      "character": "趑",
+      "bbx": [
+        11,
+        11,
+        0,
+        -1
+      ],
+      "advance": 12,
+      "raster32Sha256": "e94df439c3acd40f7af6be0676da1888558bcfc2167b6b9286ed371c41736f46"
+    },
+    {
+      "codepoint": "U+8E9E",
+      "character": "躞",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "7d4b77103283ae1cf2bcba64398add18e8e16fc03f089f860b5756f149c37f19"
+    },
+    {
+      "codepoint": "U+8F6B",
+      "character": "轫",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "c7a428865a6ab48991836ea818566bd379efab4e0d85b0ecca6f29060dfe65d4"
+    },
+    {
+      "codepoint": "U+8F94",
+      "character": "辔",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "3e94e0c7809c9f05845518daa165d6c5023519e2e155760c749c399ab5a321cf"
+    },
+    {
+      "codepoint": "U+8F98",
+      "character": "辘",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "f7c810f81a3958b3de624acdebb30a4cc5c4d0d4b9e419135345cf8060d8ccdc"
+    },
+    {
+      "codepoint": "U+90C4",
+      "character": "郄",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "fc05bd9a7028db4d717e0c4fa71995db166cddfb56cb761d4076889ad91f4589"
+    },
+    {
+      "codepoint": "U+928E",
+      "character": "銎",
+      "bbx": [
+        11,
+        11,
+        0,
+        -1
+      ],
+      "advance": 12,
+      "raster32Sha256": "eca8e1d81ef956cdeaaf180e485a2b5f17870fef6c0cb41bce9f1fed6565d7cd"
+    },
+    {
+      "codepoint": "U+92AE",
+      "character": "銮",
+      "bbx": [
+        11,
+        10,
+        0,
+        -1
+      ],
+      "advance": 12,
+      "raster32Sha256": "bc2a058afcbf29de01d69be5bbb35e32b94d1bf0eec553749e0a2b9b0c6daad6"
+    },
+    {
+      "codepoint": "U+93CA",
+      "character": "鏊",
+      "bbx": [
+        11,
+        11,
+        0,
+        -1
+      ],
+      "advance": 12,
+      "raster32Sha256": "97b1a8ccd49e9183cd07ec9bf82a9a9d38f1ab11578d994dfdb2a28d143f9be8"
+    },
+    {
+      "codepoint": "U+943E",
+      "character": "鐾",
+      "bbx": [
+        11,
+        11,
+        0,
+        -1
+      ],
+      "advance": 12,
+      "raster32Sha256": "d91f5d6309007789e681ff8b91458e036483f6e8a12d8ad1842a2aee1127f89b"
+    },
+    {
+      "codepoint": "U+94E9",
+      "character": "铩",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "8366d6bded0c94defadacdf2bc5180aab91d8a7a1ecde27c626f5b10d6c9bbc6"
+    },
+    {
+      "codepoint": "U+9532",
+      "character": "锲",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "d3912d9582576ddf8826be06357d4695c6eda7c4c427ac677bef4097799987b8"
+    },
+    {
+      "codepoint": "U+955E",
+      "character": "镞",
+      "bbx": [
+        11,
+        11,
+        0,
+        -1
+      ],
+      "advance": 12,
+      "raster32Sha256": "30ceeba7ec883268e2131b35254de504cf49267ea26638027bf2c310d8036f9e"
+    },
+    {
+      "codepoint": "U+955F",
+      "character": "镟",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "b3bb5b68654f1ecfa72703702defc930d68a2a3da1ab6deb18010d7deb34539f"
+    },
+    {
+      "codepoint": "U+9562",
+      "character": "镢",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "c3bab3f0d9069c4f743532ab392a2a2be541f8e535c032647292e59990960d2d"
+    },
+    {
+      "codepoint": "U+956C",
+      "character": "镬",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "85a7afa96af2b194318d4718d0f26ecc6c0ff4a6e66bca0f84393ac15c1efa13"
+    },
+    {
+      "codepoint": "U+9573",
+      "character": "镳",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "be08ede1b5a4de3550ef4f089203c2c4bc0c4bd0ca429ae8f2454cad21f8164a"
+    },
+    {
+      "codepoint": "U+96E0",
+      "character": "雠",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "07a86450e68c7484949d8378b61ce96f8ce5f25ac6f90ceea46b11d73a030919"
+    },
+    {
+      "codepoint": "U+988D",
+      "character": "颍",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "8e7b430fcb2d138a079ec0f0db8245b7d7790e13233ed6a5ff51de31387d617e"
+    },
+    {
+      "codepoint": "U+98E8",
+      "character": "飨",
+      "bbx": [
+        12,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "0a791bb2fafbaf6827f5be07f48380d657b46068f877139b7df98f81725a6698"
+    },
+    {
+      "codepoint": "U+9954",
+      "character": "饔",
+      "bbx": [
+        11,
+        11,
+        1,
+        -1
+      ],
+      "advance": 12,
+      "raster32Sha256": "258b4d2912d4ff76271311114091976d5f072c89e5525b58e3cd8b56dd714f3a"
+    },
+    {
+      "codepoint": "U+9A9C",
+      "character": "骜",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "991ba7fc51496726f8c937c798e928ec1c7613c6b512ca283c125fca9ee61d6d"
+    },
+    {
+      "codepoint": "U+9A9E",
+      "character": "骞",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "9bff6604d9ae849a9903732cda45126ba295a29e521f3527d6dbb761f8209c6c"
+    },
+    {
+      "codepoint": "U+9AA2",
+      "character": "骢",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "5bd2b4637a76d1842aacf4f142b5a59b2d57a0527f105127dd94cdd925263671"
+    },
+    {
+      "codepoint": "U+9AA3",
+      "character": "骣",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "984de713de95b83c71271e1ee614ef62f6ab97b43ae0aa103a21d6a8df8d7b57"
+    },
+    {
+      "codepoint": "U+9AB6",
+      "character": "骶",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "f3a48c5c7a4cccd6ac97f742c141f3ce576579ec204b60e0873883cf6f2862b0"
+    },
+    {
+      "codepoint": "U+9AF9",
+      "character": "髹",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "c43fe90cadbc594da6e1d85099c68cebe3afbcf637ec64313da45635e6074d32"
+    },
+    {
+      "codepoint": "U+9C9E",
+      "character": "鲞",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "3824c4fb0c352a20169104fef0ec006abc8905f62fb2d8a468d9dc624aef4349"
+    },
+    {
+      "codepoint": "U+9CA7",
+      "character": "鲧",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "d0e66470fc787d9fe4e938544b5a389d34cf95c24bfd0b82ca3913f2a9b40b5c"
+    },
+    {
+      "codepoint": "U+9CB0",
+      "character": "鲰",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "07e39834ddbda3e8ac4a7b4c3784c20210912fa58dfe748495252d5919f8144d"
+    },
+    {
+      "codepoint": "U+9CBA",
+      "character": "鲺",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "8a4e16a073c5dc14e1333aceecf3db01ae8b9f21beb6f165f9b07ce8810e428c"
+    },
+    {
+      "codepoint": "U+9CCC",
+      "character": "鳌",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "d7b0cd9d533ade1c2f3f821a00fd7decaf0c7fb3bf4e6384505c2dc9b1f62a70"
+    },
+    {
+      "codepoint": "U+9CCF",
+      "character": "鳏",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "bbca349c2607a7334f76d5c40af581e58d43053c821a93285af5523bd1c2d3a0"
+    },
+    {
+      "codepoint": "U+9CDC",
+      "character": "鳜",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "180785840d6072f9f8d4f18e25d2ab903cfe3d857fab0fc0eefb7e04d6b93a97"
+    },
+    {
+      "codepoint": "U+9E28",
+      "character": "鸨",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "779da9b7d48af1e832b2c74c389ea8e1a54467256e48dd7246a5cc2cdb8629f3"
+    },
+    {
+      "codepoint": "U+9E37",
+      "character": "鸷",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "8456c634b19036de67100e4b9d4674d7221543e2d3a0cf6a43071e9524d2dbac"
+    },
+    {
+      "codepoint": "U+9E3A",
+      "character": "鸺",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "8f2db28d03e07a30dc84737c7bb57315113aea37eaa893b0cc606b986801182a"
+    },
+    {
+      "codepoint": "U+9E3E",
+      "character": "鸾",
+      "bbx": [
+        11,
+        11,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "f5df6bb065bc090f78dd97b19b406b39b8adbaa878e867f7a19f8c0201e0fd98"
+    },
+    {
+      "codepoint": "U+9E46",
+      "character": "鹆",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "534388cfb124b1bae3f2b78ca98c42233781ca3b0e4038eb537df06dc3081619"
+    },
+    {
+      "codepoint": "U+9E4C",
+      "character": "鹌",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "aa62d6159a24657782118a076bed87782448c888eb314de02fcbdc456232663d"
+    },
+    {
+      "codepoint": "U+9E55",
+      "character": "鹕",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "b305c24dce332e20942ef736a3c6d642d5f83cfcb4b22cd9e96d6b24869810b3"
+    },
+    {
+      "codepoint": "U+9E5A",
+      "character": "鹚",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "44263e32521bea33daafc30090697d065980c71c94ad25ff052880fcee7dda3a"
+    },
+    {
+      "codepoint": "U+9E5E",
+      "character": "鹞",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "66e35ccc69fd4590a5bc042d02216e3a0af7405c5a66d62791086f5dd03fbfcd"
+    },
+    {
+      "codepoint": "U+9E69",
+      "character": "鹩",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "5f195e878908c3389e2e2b9dccaef79fcc8b2cdc769a26655bc29e8405c395ce"
+    },
+    {
+      "codepoint": "U+9E6D",
+      "character": "鹭",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "ddc2a85f1a229b1ec7d2c64ba9c3c4879eb1db4370e1d67a343ba4ba0ae3bac4"
+    },
+    {
+      "codepoint": "U+9E71",
+      "character": "鹱",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "809788a8c4062a6f97ab844f96be9f87bdad13f4e6658839658e9b54db8b8dff"
+    },
+    {
+      "codepoint": "U+9E87",
+      "character": "麇",
+      "bbx": [
+        11,
+        12,
+        0,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "6e7b06776349432356c980be85466df32ec2b502de58830cbc9cba9d0d6ac593"
+    },
+    {
+      "codepoint": "U+9EE7",
+      "character": "黧",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "05496aae2cd9a750a1041a2875362eb1668ce7acca24ae9010e77c5f79456d0c"
+    },
+    {
+      "codepoint": "U+9F17",
+      "character": "鼗",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "b3b8eb0a2b3bc32802adb74d57f40b20c0e42a4078fa969d7b39ae96639650ac"
+    },
+    {
+      "codepoint": "U+9F22",
+      "character": "鼢",
+      "bbx": [
+        10,
+        12,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "8d4f47bc592ae15ce23f10f3981477e348a3b3a74ed86e1bc71c17464376f80d"
+    },
+    {
+      "codepoint": "U+9F37",
+      "character": "鼷",
+      "bbx": [
+        11,
+        11,
+        1,
+        -2
+      ],
+      "advance": 12,
+      "raster32Sha256": "55616a106925737606226cb8d69d56679e3c38647e6b14a070f8b31b96a1f45c"
+    }
+  ],
+  "originalFontDataSha256": "795a24e2dd5bc2515a3f128ff7e4ce0f930b8cf550ebb03ec1dff71d63b6002a",
+  "officialM5gfxSourceUrl": "https://github.com/m5stack/M5GFX/blob/0.2.33/src/lgfx/Fonts/efont/lgfx_efont_cn.c"
+}
