@@ -20,6 +20,15 @@
 #include "WebSocketFrameReader.h"
 #include "ChatBrowser.h"
 #include "ChatStatus.h"
+#include "ExperienceController.h"
+#include "DeviceGesture.h"
+#include "StudioConnectJob.h"
+#include "StudioAuthJob.h"
+#include "SavedWifiJoin.h"
+#include "SendRecovery.h"
+#include "BoundedManagementServer.h"
+#include <lwip/sockets.h>
+#include <cerrno>
 #include "FactoryFirmware.h"
 #include "SharedWifiConfig.h"
 #include "RemoteFallback.h"
@@ -48,7 +57,7 @@
 
 namespace {
 #ifndef HERMES_MCU_FIRMWARE_VERSION
-#define HERMES_MCU_FIRMWARE_VERSION "cardputer-adv-v9.0.0-dev.10-ram-lan"
+#define HERMES_MCU_FIRMWARE_VERSION "cardputer-adv-v10.0.0-alpha.5"
 #endif
 #ifndef HERMES_MCU_FIRMWARE_MANIFEST_PATH
 #define HERMES_MCU_FIRMWARE_MANIFEST_PATH "/api/studio/mcu/firmware/cardputer-adv/manifest"
@@ -130,17 +139,14 @@ constexpr uint32_t kMcuAudioTailSilenceMs = 120;
 constexpr size_t kMcuAdpcmHeaderBytes = 20;
 constexpr size_t kMcuAdpcmReadChunkBytes = 256;
 constexpr size_t kMcuAdpcmOutputFrames = 256;
-constexpr uint32_t kBootDebounceMs = 80;
-constexpr uint32_t kBootInputArmDelayMs = 2500;
-constexpr uint32_t kBootLongPressMs = 360;
-constexpr uint32_t kBootDoubleClickMs = 320;
 constexpr uint32_t kVoiceStreamReleaseDebounceMs = 240;
 constexpr uint32_t kWifiDisconnectGraceMs = 8000;
 constexpr uint32_t kBatteryReadIntervalMs = 5000;
 constexpr bool kAutoOtaEnabled = false;
 constexpr uint32_t kVoiceRecordMs = 4000;
 constexpr uint32_t kVoiceRecordMinMs = 300;
-constexpr uint32_t kVoiceRecordHardTimeoutMs = 125000;
+constexpr uint32_t kVoiceRecordLimitMs = 5000;
+constexpr uint32_t kVoiceRecordDrainTimeoutMs = 1000;
 constexpr uint32_t kVoiceVadRmsStart = 190;
 constexpr uint32_t kVoiceVadPeakStart = 480;
 constexpr uint32_t kVoiceVadActiveThreshold = 260;
@@ -178,18 +184,21 @@ const char* factoryWifiSource = "none";
 const char* connectedWifiSource = "none";
 bool sharedWifiSaveFailed = false;
 esp_err_t factoryBootError = ESP_OK;
-class DeviceWebServer:public WebServer {
- public:
-  using WebServer::WebServer;
-  // Inspection accepts no HTTP bytes. Stop idle listening before invoking
-  // the base class's synchronous header parser, including for slow clients.
-  bool hasPendingManagement() {return bool(_currentClient) || _server.hasClient();}
-};
+using DeviceWebServer=BoundedManagementServer;
 DeviceWebServer server(80);
 WiFiUDP lanUdp;
-WiFiClient mcuWsPlainClient;
-WiFiClientSecure mcuWsSecureClient;
-WiFiClient *mcuWsClient = &mcuWsPlainClient;
+WiFiClient emptySocketClient;
+std::unique_ptr<WiFiClient> connectedSocket;
+WiFiClient* mcuWsClient = &emptySocketClient;
+studio_connect::Job studioConnectJob;
+studio_auth::Job studioAuthJob;
+uint32_t studioAuthEpoch=0,studioAuthStackFree=0,studioAuthElapsedMs=0;
+uint8_t studioAuthLastError=255,studioAuthLastStage=0;
+uint32_t loopLastAtMs=0,loopLongestGapMs=0;
+String studioAuthTarget;
+uint32_t studioConnectEpoch=0;
+String studioConnectTarget;
+studio_connect::Output studioConnectDiagnostics;
 bool wifiReady = false;
 bool setupApMode = false;
 bool oledFound = false;
@@ -208,15 +217,34 @@ bool paEnabled = false;
 bool i2sReady = false;
 bool es8311Found = false;
 bool es8311Ready = false;
-bool bootWasPressed = false;
-bool bootLongPressHandled = false;
-bool bootClickPending = false;
-bool bootSecondClickStarted = false;
-bool bootInputArmed = false;
 bool idlePowerSaveActive = false;
 bool listeningModeEnabled = false;
 NativeAgentSelection agentSelection;
-NativeConversationView conversationView;
+std::array<official_selection::Preference,kNativeAgentCount> agentPreferences{};
+official_selection::Preference agentPreference(size_t index) {
+  if(index>=kNativeAgentCount)return official_selection::Preference::Studio;
+  const auto value=agentPreferences[index];
+  if(value==official_selection::Preference::Studio || value==official_selection::Preference::Native)return value;
+  const auto* route=official_studio::agentRoute(kNativeAgents[index].id);
+  return route && !route->scoped?official_selection::Preference::Native:official_selection::Preference::Studio;
+}
+const char* agentModeLabel(size_t index) {
+  return agentPreference(index)==official_selection::Preference::Native?"原生CLI":"Studio模型";
+}
+bool setAgentPreference(size_t index,official_selection::Preference value);
+experience::Controller experienceController;
+experience::Generation activationGeneration=0,selectionWorkerGeneration=0,selectionRetryGeneration=0;
+String experienceBinding;
+bool experienceBindingObserved=false;
+bool chatPageOpen() { return experienceController.snapshot().page==experience::Page::Chat; }
+void tickExperience();
+void returnToFactoryMenu();
+void applyExperienceEffects();
+void tickStudioConnect();
+bool queueAgentActivation(size_t index);
+const char* experienceNoticeText();
+bool recordingActive();
+uint32_t recordingElapsedMs();
 NativeChatModel chatModel;
 String chatNotice, chatHistoryRequest, chatPendingSend, chatSentAgent, chatSentProfile, chatSentBinding;
 String officialAccount, officialBinding, officialSession, officialRun, officialLiveId;
@@ -268,6 +296,8 @@ constexpr uint32_t kOfficialVoiceHeapCaps=MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT;
 uint32_t officialRecordingHeapStart=0,officialRecordingHeapMinimum=0,officialRecordingLargestMinimum=0;
 uint32_t officialRecordingWorkerFree=0,officialRecordingWorkerLargest=0;
 uint8_t officialRecordingAdmissionError=0;
+uint8_t officialRecordingStartResult=255,officialRecordingStartStage=0; // 255: no start attempted.
+official_voice_job::StartDiagnostics officialRecordingStartDiagnostics;
 size_t officialRecordingLastPcmBytes=0,officialRecordingLastEncodedBytes=0;
 void sampleOfficialRecordingMemory() {
   const uint32_t free=heap_caps_get_free_size(kOfficialVoiceHeapCaps),largest=heap_caps_get_largest_free_block(kOfficialVoiceHeapCaps);
@@ -280,6 +310,7 @@ bool officialRecordingRequested=false;
 uint32_t officialVoiceRate=0,officialVoiceTailFrames=0,officialVoiceDrainAtMs=0,officialVoiceTailAtMs=0;
 uint32_t officialVoiceEpoch=0;
 official_voice_job::Output officialVoiceCompletion;
+uint32_t officialVoiceCompletions=0;
 int16_t officialStereoPcm[official_voice_job::kPcmSamples*2]{};
 official_speech::Plan officialSpeechPlan;
 official_speech::Request officialSpeechHistoryRequest;
@@ -316,6 +347,20 @@ uint32_t chatActivationAttemptVersion = 0;
 uint32_t chatAcceptedCount = 0, chatReceivedChunks = 0, chatRejectedFrames = 0;
 size_t chatBottomOffset = 0;
 bool chatProtocolReady = false, chatSendUnknown = false;
+send_recovery::Recovery sendRecovery;
+send_recovery::Ticket historyReviewTicket=0,resumeReviewTicket=0;
+void synchronizeSendRecovery() {
+  sendRecovery.scopeChanged(officialEpoch);
+  if(chatSendUnknown && sendRecovery.clear())sendRecovery.markUnknown(officialEpoch);
+  else if(!chatSendUnknown && !sendRecovery.clear())sendRecovery.observeSettled(officialEpoch);
+  chatModel.setSendUnknown(chatSendUnknown);
+}
+void leaveConversationScope() {
+  chatModel.setSendUnknown(chatSendUnknown);chatModel.hideContext();chatSendUnknown=false;
+  // A new account/Profile view starts with its own cached state. This does
+  // not settle the previous context, whose unknown flag remains preserved.
+  sendRecovery=send_recovery::Recovery();historyReviewTicket=resumeReviewTicket=0;
+}
 bool chatWasOpen = false, chatHistoryReplace = true;
 bool chatRemoteRunActive = false, chatLiveEventsSeen = false;
 uint32_t chatRecoveryPollAtMs = 0;
@@ -351,11 +396,6 @@ uint32_t lastMcuLoginAtMs = 0;
 uint32_t lastMcuSocketConnectAtMs = 0;
 uint32_t nextMcuSocketReconnectAtMs = 0;
 uint32_t mcuSocketReconnectDelayMs = kMcuSocketReconnectMs;
-uint32_t lastBootButtonAtMs = 0;
-uint32_t bootPressedAtMs = 0;
-uint32_t bootClickPendingAtMs = 0;
-uint32_t bootReleaseStartedAtMs = 0;
-uint32_t audioInterruptPressStartedAtMs = 0;
 uint32_t wifiDisconnectedSinceMs = 0;
 uint32_t lastBatteryReadAtMs = 0;
 uint32_t lastMcuActivityAtMs = 0;
@@ -387,6 +427,18 @@ uint32_t remoteDiscoveryFinishedAtMs = 0;
 uint32_t remoteCredentialsRetryAtMs = 0;
 native_remote::SocketLiveness mcuSocketLiveness;
 native_wifi::SavedNetworkRetry savedNetworkRetry;
+native_wifi::SavedWifiJoin savedWifiJoin;
+String joiningSsids[kMaxWifiCandidates],joiningPasswords[kMaxWifiCandidates];
+int joiningCount=0;
+void beginSavedWifiConnection();
+void tickSavedWifiConnection();
+void clearJoiningCredentials() {
+  for(int i=0;i<kMaxWifiCandidates;++i) {
+    for(size_t j=0;j<joiningPasswords[i].length();++j)joiningPasswords[i][j]=0;
+    joiningPasswords[i]="";joiningSsids[i]="";
+  }
+  joiningCount=0;
+}
 native_reauth::RetryPolicy mcuReauthPolicy;
 bool mcuReauthAttemptInProgress = false;
 bool mcuReauthAudioCleanupPending = false;
@@ -430,35 +482,8 @@ uint32_t voiceRecordActiveSamples = 0;
 uint8_t outputVolumePercent = kDefaultOutputVolumePercent;
 uint8_t idlePowerSaveMinutes = kDefaultIdlePowerSaveMinutes;
 
-struct McuAudioSegment {
-  String interactionId;
-  String segmentId;
-  String text;
-  String url;
-  String mimeType;
-  uint8_t channels = 2;
-  uint32_t sampleRate = kMcuAudioDefaultSampleRate;
-  uint32_t durationMs = 0;
-  bool completionManagedByServer = false;
-};
-
-struct VoiceStreamChunk {
-  bool done = false;
-  uint32_t offset = 0;
-  size_t bytes = 0;
-  int16_t samples[kVoiceStreamChunkFrames] = {};
-  uint8_t adpcm[kVoiceStreamAdpcmMaxBytes] = {};
-};
-
-McuAudioSegment mcuAudioQueue[kMaxMcuAudioQueue];
-int mcuAudioHead = 0;
-int mcuAudioCount = 0;
-McuAudioSegment mcuCurrentAudio;
-bool audioResumePending = false;
-size_t audioResumeAgent = 0;
-uint32_t audioResumeVersion = 0;
-String audioResumeProfile, audioResumeDeviceKey;
-
+// Legacy MCU audio queue is not part of the official /chat-run pipeline.
+constexpr int mcuAudioCount = 0;
 bool requestCardputerAgentSelection(size_t index);
 void tickCardputerInput();
 void markMcuInteraction(const String &interactionId, const String &status, const String &text);
@@ -594,12 +619,6 @@ void updateBatteryReading(bool force = false) {
 
 
 
-String hexByte(uint8_t value) {
-  char buf[5];
-  snprintf(buf, sizeof(buf), "0x%02X", value);
-  return String(buf);
-}
-
 void setPowerAmp(bool enable) {
   paEnabled = cardputerSpeakerEnable(enable) && enable;
 }
@@ -664,6 +683,7 @@ bool cardputerChatAvailable() {
 }
 
 const char* nativeChatStatusLabel() {
+  if (mcuReauthPolicy.bindingChanged()) return "需重新绑定";
   NativeChatStatusState state;
   state.wifiConnected = wifiReady && WiFi.status() == WL_CONNECTED;
   state.loginRequired = mcuSocketReconnectBlocked || mcuReauthPolicy.rejected() ||
@@ -672,9 +692,6 @@ const char* nativeChatStatusLabel() {
   state.reauthenticating = mcuReauthAttemptInProgress || mcuReauthAudioCleanupPending ||
       mcuReauthPolicy.blocksSocket();
   state.namespaceReady = mcuSocketNamespaceReady;
-  state.audioTransportPaused = audioResumePending && audioResumeAgent == agentSelection.active &&
-      audioResumeAgent == agentSelection.browse && audioResumeProfile == selectedProfile &&
-      audioResumeDeviceKey == activeDeviceKey;
   state.audioPlaying = mcuAudioPlaying || officialVoiceOutputPlaying;
   state.agentConfirmed = agentSelection.confirmed;
   state.agentPending = agentSelection.pending;
@@ -687,7 +704,7 @@ const char* nativeChatStatusLabel() {
   state.interactionStatus = mcuInteractionStatus.c_str();
   const char* label = nativeChatStatus(state);
   static const char* previousLabel = nullptr;
-  if (conversationView.conversation() && (!previousLabel || std::strcmp(previousLabel, label) != 0)) {
+  if (chatPageOpen() && (!previousLabel || std::strcmp(previousLabel, label) != 0)) {
     Serial.printf("Chat display status=%s wifi=%d native=%d audio_pause=%d\n", label,
                   state.wifiConnected, state.namespaceReady, state.audioTransportPaused);
     previousLabel = label;
@@ -696,14 +713,28 @@ const char* nativeChatStatusLabel() {
 }
 
 bool oledFlushPages(uint8_t, uint8_t) {
-  conversationView.synchronize(agentSelection, selectedProfile.c_str(),
-                               cardputerChatAvailable(), agentSelectionError.length() != 0);
-  String address = setupApMode ? String("192.168.4.1") :
-      (wifiReady ? WiFi.localIP().toString() + "/device" : String("Wi-Fi connecting"));
-  cardputerDraw(oledBuffer, mcuInteractionActive, agentSelection, conversationView, oledTitle,
-                oledHint, address, mcuSocketNamespaceReady, agentSelectionError,
-                chatModel, nativeChatStatusLabel(), chatNotice, chatBottomOffset,
-                chatPendingSend.length() != 0, chatHistoryMode, chatUiRevision);
+  const auto& state=experienceController.snapshot();
+  String address=setupApMode?String("192.168.4.1/device"):
+      (wifiReady?WiFi.localIP().toString()+"/device":String());
+  CardputerPresentation frame(agentSelection,chatModel);
+  frame.conversation=chatPageOpen();frame.waiting=state.openIntent;frame.exiting=state.exitPending;
+  frame.online=mcuSocketNamespaceReady;frame.sending=chatPendingSend.length()!=0;
+  frame.sendUncertain=chatSendUnknown && !chatRemoteRunActive && !chatPendingSend.length();frame.sendReviewable=sendRecovery.phase()==send_recovery::Phase::Reviewable;
+  frame.historyMode=chatHistoryMode;frame.status=frame.conversation?nativeChatStatusLabel():
+      state.connection==experience::Connection::Ready?"电脑已连接":
+      state.connection==experience::Connection::NeedsBinding?"需要登录":
+      state.connection==experience::Connection::Authenticating?"验证登录":
+      state.connection==experience::Connection::Offline?"网络断开":"连接后台";
+  const char* appNotice=experienceNoticeText();
+  frame.notice=chatNotice.length()?chatNotice.c_str():appNotice;
+  frame.message=state.exitPending?"正在停止后台任务，请稍等":
+      agentSelectionError.length() && chatNotice.length()?chatNotice.c_str():appNotice;
+  frame.modeLabel=agentModeLabel(state.desiredAgent);
+  frame.address=address.c_str();frame.bottomOffset=chatBottomOffset;
+  frame.recording=recordingActive();
+  frame.recordingElapsedMs=recordingElapsedMs();
+  frame.recordingLimitMs=kVoiceRecordLimitMs;
+  cardputerDraw(frame);
   return true;
 }
 
@@ -986,6 +1017,14 @@ void loadAudioPreferences() {
   String savedAgent = prefs.getString("agent_id", prefs.getBool("agent_hermes", false) ? "hermes" : "ekko-agent");
   int savedIndex = nativeAgentIndex(savedAgent.c_str());
   agentSelection.active = agentSelection.browse = savedIndex < 0 ? 0 : static_cast<size_t>(savedIndex);
+  experienceController.dispatch(experience::Event::browse(int(agentSelection.browse)-int(experienceController.snapshot().desiredAgent)));
+  for(size_t i=0;i<kNativeAgentCount;++i) {
+    char key[16];snprintf(key,sizeof(key),"mode_%u",unsigned(i));
+    const auto saved=static_cast<official_selection::Preference>(prefs.getUChar(key,0));
+    const auto* route=official_studio::agentRoute(kNativeAgents[i].id);
+    if((saved==official_selection::Preference::Native && route->global) ||
+        (saved==official_selection::Preference::Studio && route->scoped))agentPreferences[i]=saved;
+  }
   prefs.end();
 }
 
@@ -1127,6 +1166,7 @@ String mcuDeviceCode() {
 }
 
 String mcuSocketStateLabel() {
+  if (mcuReauthPolicy.bindingChanged()) return F("电脑身份变化，需重新绑定");
   if (mcuSocketReconnectBlocked) return F("已被其他设备接管");
   if (mcuSocketNamespaceReady && agentSelection.confirmed)
     return mcuSocketRelayUrl.length() ? F("远程已连接") : F("已连接");
@@ -1292,42 +1332,6 @@ String jsonObjectValue(const String &json, const __FlashStringHelper *key) {
   return "";
 }
 
-String jsonArrayValue(const String &json, const __FlashStringHelper *key) {
-  String pattern = String(F("\"")) + key + F("\"");
-  int keyAt = json.indexOf(pattern);
-  if (keyAt < 0) return "";
-  int colonAt = json.indexOf(':', keyAt + pattern.length());
-  if (colonAt < 0) return "";
-  int openAt = json.indexOf('[', colonAt + 1);
-  if (openAt < 0) return "";
-
-  bool inString = false;
-  bool escaped = false;
-  int depth = 0;
-  for (int i = openAt; i < static_cast<int>(json.length()); ++i) {
-    char c = json[i];
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-    if (c == '\\') {
-      escaped = inString;
-      continue;
-    }
-    if (c == '"') {
-      inString = !inString;
-      continue;
-    }
-    if (inString) continue;
-    if (c == '[') ++depth;
-    if (c == ']') {
-      --depth;
-      if (depth == 0) return json.substring(openAt, i + 1);
-    }
-  }
-  return "";
-}
-
 int jsonIntValue(const String &json, const __FlashStringHelper *key) {
   String pattern = String(F("\"")) + key + F("\"");
   int keyAt = json.indexOf(pattern);
@@ -1339,43 +1343,8 @@ int jsonIntValue(const String &json, const __FlashStringHelper *key) {
   return json.substring(startAt).toInt();
 }
 
-bool jsonBoolValue(const String &json, const __FlashStringHelper *key) {
-  String pattern = String(F("\"")) + key + F("\"");
-  int keyAt = json.indexOf(pattern);
-  if (keyAt < 0) return false;
-  int colonAt = json.indexOf(':', keyAt + pattern.length());
-  if (colonAt < 0) return false;
-  int startAt = colonAt + 1;
-  while (startAt < static_cast<int>(json.length()) && json[startAt] == ' ') ++startAt;
-  return json.startsWith(F("true"), startAt);
-}
-
-void putLe16(uint8_t *dst, uint16_t value) {
-  dst[0] = static_cast<uint8_t>(value & 0xFF);
-  dst[1] = static_cast<uint8_t>((value >> 8) & 0xFF);
-}
-
-void putLe32(uint8_t *dst, uint32_t value) {
-  dst[0] = static_cast<uint8_t>(value & 0xFF);
-  dst[1] = static_cast<uint8_t>((value >> 8) & 0xFF);
-  dst[2] = static_cast<uint8_t>((value >> 16) & 0xFF);
-  dst[3] = static_cast<uint8_t>((value >> 24) & 0xFF);
-}
-
-void writeWavHeader(uint8_t *wav, uint32_t dataBytes) {
-  memcpy(wav, "RIFF", 4);
-  putLe32(wav + 4, 36 + dataBytes);
-  memcpy(wav + 8, "WAVEfmt ", 8);
-  putLe32(wav + 16, 16);
-  putLe16(wav + 20, 1);
-  putLe16(wav + 22, 1);
-  putLe32(wav + 24, kVoiceInputSampleRate);
-  putLe32(wav + 28, kVoiceInputSampleRate * 2);
-  putLe16(wav + 32, 2);
-  putLe16(wav + 34, 16);
-  memcpy(wav + 36, "data", 4);
-  putLe32(wav + 40, dataBytes);
-}
+void putLe16(uint8_t* out,uint16_t value) {out[0]=uint8_t(value);out[1]=uint8_t(value>>8);}
+void putLe32(uint8_t* out,uint32_t value) {for(unsigned i=0;i<4;++i)out[i]=uint8_t(value>>(8*i));}
 
 bool parseAudioUrl(const String &url, String *scheme, String *host, uint16_t *port, String *path) {
   if (!scheme || !host || !port || !path) return false;
@@ -1424,56 +1393,6 @@ bool parseAudioUrl(const String &url, String *scheme, String *host, uint16_t *po
   return true;
 }
 
-String readHttpLine(WiFiClient &client, uint32_t timeoutMs) {
-  String line;
-  uint32_t started = millis();
-  while (millis() - started < timeoutMs) {
-    while (client.available() > 0) {
-      char c = static_cast<char>(client.read());
-      if (c == '\r') continue;
-      if (c == '\n') return line;
-      if (line.length() < 240) line += c;
-    }
-    if (!client.connected()) break;
-    delay(5);
-    yield();
-  }
-  return line;
-}
-
-bool readHttpResponseHeaders(WiFiClient &client, int *statusCode, int *contentLength, String *contentType) {
-  if (!statusCode || !contentLength || !contentType) return false;
-  String status = readHttpLine(client, kMcuAudioHttpTimeoutMs);
-  status.trim();
-  if (!status.startsWith(F("HTTP/"))) {
-    lastAudioDetail = String(F("bad HTTP response: ")) + compactDetail(status);
-    return false;
-  }
-  int firstSpace = status.indexOf(' ');
-  if (firstSpace < 0) return false;
-  *statusCode = status.substring(firstSpace + 1, firstSpace + 4).toInt();
-  *contentLength = -1;
-  *contentType = "";
-
-  while (true) {
-    String line = readHttpLine(client, kMcuAudioHttpTimeoutMs);
-    if (line.length() == 0) break;
-    int colon = line.indexOf(':');
-    if (colon <= 0) continue;
-    String name = line.substring(0, colon);
-    String value = line.substring(colon + 1);
-    name.toLowerCase();
-    value.trim();
-    if (name == F("content-length")) {
-      *contentLength = value.toInt();
-    } else if (name == F("content-type")) {
-      *contentType = value;
-      contentType->toLowerCase();
-    }
-  }
-  return *statusCode > 0;
-}
-
 bool setI2sSampleRate(uint32_t sampleRate) {
   return i2sReady && cardputerAudioRate(sampleRate);
 }
@@ -1499,37 +1418,6 @@ int16_t shapeVoiceInputSample(int16_t sample) {
 
 // Every playback exit, including HTTP failure or a user interruption, joins the
 // SDK consumer before the next Agent or recording can acquire the codec.
-struct NativeAudioPlaybackScope {
-  ~NativeAudioPlaybackScope() { cardputerAudioClear(); }
-};
-
-bool drainI2sPlayback(uint32_t writtenBytes, uint8_t channels, uint32_t sampleRate) {
-  if (writtenBytes == 0 || channels == 0 || sampleRate == 0) return true;
-  uint32_t frameBytes = static_cast<uint32_t>(channels) * sizeof(int16_t);
-  uint32_t silenceFrames = (sampleRate * kMcuAudioTailSilenceMs) / 1000UL;
-  int16_t silence[128 * 2] = {};
-  while (silenceFrames > 0) {
-    uint32_t frames = min<uint32_t>(silenceFrames, 128);
-    size_t written = 0;
-    esp_err_t err = cardputerAudioWrite(silence, frames * frameBytes, &written, pdMS_TO_TICKS(1000));
-    if (err != ESP_OK || written != frames * frameBytes) {
-      lastAudioDetail = F("audio tail write failed"); return false;
-    }
-    silenceFrames -= written / frameBytes;
-    yield();
-  }
-  uint32_t totalMs = (writtenBytes / frameBytes) * 1000UL / sampleRate;
-  uint32_t drainMs = min<uint32_t>(max<uint32_t>(totalMs / 4, kMcuAudioDrainMinMs), kMcuAudioDrainMaxMs);
-  // Source-release callbacks precede the physical DMA tail. First drain the
-  // continuous queue, then retain the existing codec/DMA tail allowance.
-  if (!cardputerAudioDrain(pdMS_TO_TICKS(2000))) {
-    lastAudioDetail = F("audio queue drain timed out"); return false;
-  }
-  delay(drainMs);
-  yield();
-  return true;
-}
-
 uint16_t sampleMagnitude(int16_t sample) {
   return sample == INT16_MIN ? 32768 : static_cast<uint16_t>(sample < 0 ? -sample : sample);
 }
@@ -1593,14 +1481,86 @@ int16_t voiceInputMonoSample(int16_t left, int16_t right, VoiceInputChannel chan
   return shapeVoiceInputSample(static_cast<int16_t>(mixed));
 }
 
+enum class RecordingStopReason:uint8_t {None,Released,WallLimit,SampleLimit,Cancelled,StartFailed,CaptureFailed,NoSpeech,DrainTimeout};
+enum class RecordingOutcome:uint8_t {None,Complete,Cancelled,Failed};
 struct OfficialRecordingState {
-  bool active=false,automatic=false,heardSpeech=false,stopping=false;
-  uint32_t epoch=0,keys=0,navigation=0,startedAt=0,releaseAt=0,lastSpeechAt=0,frames=0,activeSamples=0,frameLimit=0;
+  bool active=false,ready=false,captureStarted=false,storeOwned=false,heardSpeech=false,stopping=false,releaseTracked=false;
+  uint32_t takeId=0,epoch=0,keys=0,navigation=0,startedAt=0,stoppedAt=0,drainAt=0,releaseAt=0,lastSpeechAt=0,frames=0,activeSamples=0,frameLimit=0;
   uint16_t peak=0;
   uint64_t squares=0;
   VoiceInputChannel channel=VoiceInputChannel::Undecided;
+  RecordingStopReason stopReason=RecordingStopReason::None;
 };
 OfficialRecordingState officialRecording;
+struct RecordingTakeSnapshot {
+  uint32_t takeId=0,wallMs=0,frames=0,pcmBytes=0,encodedBytes=0;
+  uint32_t produced=0,consumed=0,maxReady=0,overruns=0,invalidCallbacks=0,discarded=0,sampleRate=0,error=0,bufferBytes=0;
+  RecordingStopReason reason=RecordingStopReason::None;
+  RecordingOutcome outcome=RecordingOutcome::None;
+  bool captureStarted=false,sttStarted=false,storageRetained=false;
+};
+RecordingTakeSnapshot lastRecordingTake;
+uint32_t recordingTakeSequence=0,officialSttTakeId=0;
+struct SttMetricsSnapshot {
+  uint32_t takeId=0,stackFree=0,heapMin=0,largestMin=0,bootHeapMin=0;
+  int http=0;uint8_t error=0;bool present=false,available=false;
+};
+SttMetricsSnapshot lastSttMetrics;
+void latchOfficialSttMetrics(const official_voice_job::Output& out,bool valid) {
+  if(!valid || out.type!=official_voice_job::Type::Stt || !officialSttTakeId)return;
+  lastSttMetrics.takeId=officialSttTakeId;lastSttMetrics.error=static_cast<uint8_t>(out.result.error);
+  lastSttMetrics.http=out.result.httpStatus;lastSttMetrics.available=out.resourcesAvailable;
+  lastSttMetrics.stackFree=out.workerStackFreeBytes;lastSttMetrics.heapMin=out.internalHeapMinObservedBytes;
+  lastSttMetrics.largestMin=out.internalLargestBlockMinObservedBytes;lastSttMetrics.bootHeapMin=out.systemHeapLowWaterBytes;
+  lastSttMetrics.present=true;
+}
+const char* recordingStopName(RecordingStopReason reason) {
+  switch(reason) {
+    case RecordingStopReason::Released:return "released";
+    case RecordingStopReason::WallLimit:return "wall_limit";
+    case RecordingStopReason::SampleLimit:return "sample_limit";
+    case RecordingStopReason::Cancelled:return "cancelled";
+    case RecordingStopReason::StartFailed:return "start_failed";
+    case RecordingStopReason::CaptureFailed:return "capture_failed";
+    case RecordingStopReason::NoSpeech:return "no_speech";
+    case RecordingStopReason::DrainTimeout:return "drain_timeout";
+    default:return "none";
+  }
+}
+uint32_t officialRecordingWallMs() {
+  return officialRecording.ready?uint32_t((officialRecording.stopping?officialRecording.stoppedAt:millis())-officialRecording.startedAt):0;
+}
+void latchOfficialRecording(RecordingOutcome outcome,bool sttStarted=false) {
+  RecordingTakeSnapshot completed;
+  completed.takeId=officialRecording.takeId;completed.wallMs=officialRecordingWallMs();
+  completed.pcmBytes=officialRecording.storeOwned?officialRecordingStore.recordedBytes():0;
+  completed.encodedBytes=officialRecording.storeOwned?officialRecordingStore.encodedBytes():0;
+  completed.frames=completed.pcmBytes/sizeof(int16_t);completed.reason=officialRecording.stopReason;
+  completed.outcome=outcome;completed.captureStarted=officialRecording.captureStarted;completed.sttStarted=sttStarted;
+  if(completed.captureStarted) {
+    const auto capture=cardputerCaptureStats();
+    completed.produced=capture.queue.producedBlocks;completed.consumed=capture.queue.consumedBlocks;
+    completed.maxReady=capture.queue.maxReadyBlocks;completed.overruns=capture.queue.overruns;
+    completed.invalidCallbacks=capture.queue.invalidCallbacks;completed.discarded=capture.queue.discardedAfterJoin;
+    completed.sampleRate=capture.sampleRate;completed.error=static_cast<uint32_t>(capture.error);
+    completed.storageRetained=capture.storageRetained;completed.bufferBytes=capture.bufferBytes;
+  }
+  lastRecordingTake=completed;
+  officialRecordingLastPcmBytes=completed.pcmBytes;officialRecordingLastEncodedBytes=completed.encodedBytes;
+}
+CardputerCaptureStats recordingCaptureForHealth() {
+  if(officialRecording.active && officialRecording.captureStarted)return cardputerCaptureStats();
+  CardputerCaptureStats capture;
+  capture.failed=lastRecordingTake.error!=0;capture.error=static_cast<mic_capture::Error>(lastRecordingTake.error);
+  capture.sampleRate=lastRecordingTake.sampleRate;
+  capture.storageRetained=lastRecordingTake.storageRetained;capture.bufferBytes=lastRecordingTake.bufferBytes;
+  capture.queue.producedBlocks=lastRecordingTake.produced;capture.queue.consumedBlocks=lastRecordingTake.consumed;
+  capture.queue.maxReadyBlocks=lastRecordingTake.maxReady;capture.queue.overruns=lastRecordingTake.overruns;
+  capture.queue.invalidCallbacks=lastRecordingTake.invalidCallbacks;capture.queue.discardedAfterJoin=lastRecordingTake.discarded;
+  return capture;
+}
+bool recordingActive(){return officialRecording.active;}
+uint32_t recordingElapsedMs(){return officialRecording.active?officialRecordingWallMs():0;}
 
 bool officialVoiceNetworkBusy() {
   return officialRecording.active || officialVoiceJob.busy() || officialVoiceDrainPending || officialVoiceOutputPlaying;
@@ -1891,7 +1851,8 @@ int oldestLanDeviceSlot() {
 }
 
 void rememberLanDeviceInfo(const String &json, const String &host, const String &baseUrl, uint32_t responseMs,
-                           bool requireAnnouncement, bool manualSource = false, bool remoteSource = false) {
+                           bool requireAnnouncement, bool manualSource = false, bool remoteSource = false,
+                           bool identityVerified = false) {
   if (requireAnnouncement) {
     if (jsonStringValue(json, F("type")) != F("hermes.announce")) return;
     if (jsonIntValue(json, F("version")) != 1) return;
@@ -1931,6 +1892,9 @@ void rememberLanDeviceInfo(const String &json, const String &host, const String 
   device.lastSeenMs = millis();
   device.manualSource = manualSource;
   device.remoteSource = remoteSource;
+  // Only a successful direct HTTP identity read may set this diagnostic bit;
+  // an unauthenticated UDP announcement never establishes it.
+  device.identityVerified = identityVerified;
   applySavedProfile(device);
 }
 
@@ -2010,36 +1974,143 @@ void persistManualDeviceUrl(const String &url) {
   prefs.end();
 }
 
-bool fetchManualDeviceInfo(const String &input, String *error) {
-  String host;
-  String baseUrl = normalizedManualDeviceUrl(input, &host);
-  if (baseUrl.length() == 0) {
-    if (error) *error = F("机器地址无效");
-    return false;
+class LoginResponse final:public Stream {
+ public:
+  explicit LoginResponse(uint32_t timeoutMs=0,uint32_t startedAtMs=millis())
+      : timeoutMs_(timeoutMs),startedAtMs_(startedAtMs) {}
+  String body;bool overflow=false,timedOut=false;
+  int available() override {return 0;}
+  int read() override {return -1;}
+  int peek() override {return -1;}
+  void flush() override {}
+  size_t write(uint8_t byte) override {return write(&byte,1);}
+  size_t write(const uint8_t* bytes,size_t count) override {
+    if(timeoutMs_ && static_cast<uint32_t>(millis()-startedAtMs_)>=timeoutMs_) {timedOut=true;return 0;}
+    if(count>8192-body.length()) {overflow=true;return 0;}
+    const size_t before=body.length();body.concat(reinterpret_cast<const char*>(bytes),count);
+    return body.length()==before+count?count:0;
   }
+ private:
+  uint32_t timeoutMs_,startedAtMs_;
+};
 
-  HTTPClient http;
-  http.setTimeout(kMcuLoginTimeoutMs);
-  String endpoint = baseUrl + F("/api/devices/link-info");
-  uint32_t started = millis();
-  if (!http.begin(endpoint)) {
-    if (error) *error = F("无法打开机器信息接口");
-    return false;
+// Pinned HTTPClient can wait forever on available()==0. Gate the actual
+// protocol-selected client as well as the bounded body loop, including headers.
+template<typename Base> class IdentityDeadlineClient final:public Base {
+ public:
+  using Base::connect;using Base::read;
+  explicit IdentityDeadlineClient(uint32_t started):started_(started){}
+  int available()override{return alive()?std::max(0,Base::available()):0;}
+  uint8_t connected()override{return alive()?Base::connected():0;}
+  int read()override{return alive()?Base::read():-1;}
+  int read(uint8_t* bytes,size_t count)override{return alive()?Base::read(bytes,count):-1;}
+  int peek()override{return alive()?Base::peek():-1;}
+  size_t write(uint8_t byte)override{return write(&byte,1);}
+  size_t write(const uint8_t* bytes,size_t count)override{return alive()?Base::write(bytes,count):0;}
+  int connect(const char* host,uint16_t port,int32_t timeout)override {
+    if(!alive())return 0;
+    const uint32_t left=kMcuLoginTimeoutMs-uint32_t(millis()-started_);
+    const int result=Base::connect(host,port,std::min<int32_t>(timeout>0?timeout:int32_t(left),int32_t(left)));
+    return alive()?result:0;
   }
-  int code = http.GET();
-  String body = http.getString();
-  http.end();
-  if (code < 200 || code >= 300) {
-    if (error) *error = httpFailureDetail(code, body);
-    return false;
+ private:
+  uint32_t started_;bool stopped_=false;
+  bool alive() {
+    if(stopped_)return false;
+    if(uint32_t(millis()-started_)>=kMcuLoginTimeoutMs) {
+      stopped_=true;Base::stop();static_cast<Stream&>(*this).setTimeout(0);return false;
+    }
+    return true;
   }
-  if (jsonStringValue(body, F("device_id")).length() == 0 ||
-      jsonStringValue(body, F("device_public_key")).length() == 0) {
-    if (error) *error = F("机器信息缺少设备身份");
-    return false;
+};
+
+bool readLanIdentityBody(WiFiClient& client,const String& endpoint,uint32_t started,String* body) {
+  HTTPClient http;http.setReuse(false);http.useHTTP10(true);
+  http.setFollowRedirects(HTTPC_DISABLE_FOLLOW_REDIRECTS);
+  http.setConnectTimeout(kMcuLoginTimeoutMs);http.setTimeout(kMcuLoginTimeoutMs);
+  if(!http.begin(client,endpoint))return false;
+  const char* names[]{"Transfer-Encoding","Content-Encoding"};http.collectHeaders(names,2);
+  const int status=http.GET(),length=http.getSize();
+  // Official LAN link-info has Content-Length. Unknown/chunked/compressed
+  // responses are explicitly unsupported here; failure never authorizes login.
+  if(status<200||status>=300||length<=0||length>8192||
+      http.header("Transfer-Encoding").length()||http.header("Content-Encoding").length()) {http.end();return false;}
+  LoginResponse received(kMcuLoginTimeoutMs,started);
+  auto* input=http.getStreamPtr();
+  while(input&&received.body.length()<static_cast<size_t>(length)) {
+    if(uint32_t(millis()-started)>=kMcuLoginTimeoutMs)break;
+    const int available=input->available();
+    if(available>0) {
+      uint8_t chunk[256];const size_t count=std::min<size_t>(sizeof(chunk),std::min<size_t>(available,length-received.body.length()));
+      const int got=input->read(chunk,count);
+      if(got<=0||received.write(chunk,got)!=static_cast<size_t>(got))break;
+    } else {
+      if(!input->connected())break;
+      delay(1);yield();
+    }
   }
-  rememberLanDeviceInfo(body, host, baseUrl, millis() - started, false, true);
-  persistManualDeviceUrl(baseUrl);
+  const bool ok=received.body.length()==static_cast<size_t>(length)&&!received.overflow&&!received.timedOut&&
+      uint32_t(millis()-started)<kMcuLoginTimeoutMs;
+  http.end();if(ok)*body=std::move(received.body);return ok;
+}
+
+// ArduinoJson stops at the first object; retain its exact input cursor so only
+// whitespace, rather than a second/truncated object, may follow that object.
+struct IdentityJsonInput {
+  const String& body;size_t position=0;
+  explicit IdentityJsonInput(const String& input):body(input) {}
+  int read(){return position<body.length()?static_cast<uint8_t>(body[position++]):-1;}
+  size_t readBytes(char* bytes,size_t count){size_t n=0;for(;n<count&&position<body.length();++n)bytes[n]=body[position++];return n;}
+  bool finished()const {for(size_t i=position;i<body.length();++i)if(body[i]!=' '&&body[i]!='\r'&&body[i]!='\n'&&body[i]!='\t')return false;return true;}
+};
+
+// Read-only identity request; only the explicit manual wrapper persists URLs.
+bool readLanDeviceInfo(const String& input,String* error,bool manualSource,LanDevice* identity=nullptr) {
+  String host;const String baseUrl=normalizedManualDeviceUrl(input,&host);
+  String scheme,parsedHost,path;uint16_t expectedPort=0;
+  if(!baseUrl.length()||!parseAudioUrl(baseUrl,&scheme,&parsedHost,&expectedPort,&path))return false;
+  const uint32_t started=millis();String body;bool read=false;
+  const String endpoint=baseUrl+F("/api/devices/link-info");
+  if(scheme==F("https")) {
+    IdentityDeadlineClient<WiFiClientSecure> client(started);native_tls::configureTrust(client);
+    client.setHandshakeTimeout((kMcuLoginTimeoutMs+999)/1000);
+    read=readLanIdentityBody(client,endpoint,started,&body);
+  } else if(scheme==F("http")) {
+    IdentityDeadlineClient<WiFiClient> client(started);
+    read=readLanIdentityBody(client,endpoint,started,&body);
+  }
+  if(!read){if(error)*error=F("机器信息读取失败或超时");return false;}
+  JsonDocument filter,document;filter["device_id"]=true;filter["device_public_key"]=true;
+  filter["http_port"]=true;filter["endpoint_kind"]=true;
+  const char* displayFields[]{"computer_name","hermes_web_ui_version","hermes_agent_version","relay_url","remote_http_url"};
+  for(const char* field:displayFields)filter[field]=true;
+  IdentityJsonInput json{body};
+  if(deserializeJson(document,json,DeserializationOption::Filter(filter))||!json.finished()||!document.is<JsonObjectConst>()||
+      !document["device_id"].is<const char*>()||!document["device_public_key"].is<const char*>()||
+      !document["http_port"].is<uint16_t>()||!document["endpoint_kind"].is<const char*>())return false;
+  const JsonString id=document["device_id"].as<JsonString>(),publicKey=document["device_public_key"].as<JsonString>();
+  const String kind=document["endpoint_kind"].as<const char*>();const uint16_t port=document["http_port"].as<uint16_t>();
+  const String key=lanDeviceKey(String(id.c_str()),kind,port);
+  if(!id.size()||id.size()>256||std::strlen(id.c_str())!=id.size()||!publicKey.size()||publicKey.size()>4096||
+      std::strlen(publicKey.c_str())!=publicKey.size()||!kind.length()||port!=expectedPort||
+      !native_reauth::completeDeviceBinding(key.c_str()))return false;
+  if(identity) {
+    identity->id=id.c_str();identity->endpointKind=kind;identity->httpPort=port;identity->url=baseUrl;
+    identity->ip=host;identity->manualSource=manualSource;identity->remoteSource=false;
+    identity->identityVerified=true;identity->lastSeenMs=millis();
+  }
+  // The legacy cache reader scans raw text. Give it a flat canonical root,
+  // preserving friendly metadata but excluding nested same-name fields.
+  for(const char* field:displayFields)if(!document[field].is<const char*>())document.remove(field);
+  String canonical;const size_t count=serializeJson(document,canonical);
+  if(!count||canonical.length()!=count)return false;
+  rememberLanDeviceInfo(canonical,host,baseUrl,millis()-started,false,manualSource,false,true);
+  return true;
+}
+
+bool fetchManualDeviceInfo(const String &input, String *error) {
+  if (!readLanDeviceInfo(input, error, true)) return false;
+  persistManualDeviceUrl(normalizedManualDeviceUrl(input));
   return true;
 }
 
@@ -2264,6 +2335,8 @@ void sendStatusPage() {
   appendInfoRow(html, F("可用内存"), String(ESP.getFreeHeap()) + F(" bytes"));
   appendInfoRow(html, F("服务连接"), mcuSocketStateLabel());
   appendInfoRow(html, F("后台设备状态"), mcuStatusNamespaceReady?String("在线"):String("尚未同步"));
+  if (mcuReauthPolicy.bindingChanged())
+    appendInfoRow(html, F("连接提示"), F("已保存绑定与当前电脑身份不一致，请重新登录绑定"));
   if (mcuSocketRelayUrl.length() > 0) {
     appendInfoRow(html, F("远程转发"), mcuSocketRelayUrl);
   }
@@ -2285,13 +2358,21 @@ void sendStatusPage() {
 
   html += F("</section>");
 
-  html += F("<section class='card'><h2>Agent</h2><form method='post' action='/device/agent'><select name='runtime'>");
+  html += F("<section class='card'><h2>Agent</h2><form method='post' action='/device/agent'><select name='runtime' onchange=\"const o=this.options[this.selectedIndex],m=this.form.elements.mode;m.value=o.dataset.mode;m.options[0].disabled=o.dataset.studio!=='1';m.options[1].disabled=o.dataset.native!=='1';\">");
   for (size_t i = 0; i < kNativeAgentCount; ++i) {
-    html += F("<option value='"); html += kNativeAgents[i].id; html += F("'");
+    html += F("<option value='");html+=kNativeAgents[i].id;html+=F("' data-mode='");
+    html+=agentPreference(i)==official_selection::Preference::Native?"native":"studio";
+    const auto* route=official_studio::agentRoute(kNativeAgents[i].id);
+    html+=F("' data-studio='");html+=route->scoped?"1":"0";
+    html+=F("' data-native='");html+=route->global?"1":"0";html+=F("'");
     if (i == agentSelection.active) html += F(" selected");
     html += F(">"); html += kNativeAgents[i].name; html += F("</option>");
   }
-  html += F("</select><button class='btn primary' type='submit'>选择 Agent</button></form><p class='hint'>选择页左 , 或上 ; 选前一个，右 / 或下 . 选后一个，无需 Fn。OK 进入对话，Esc 返回。对话页直接打字、OK发送；Fn+空格或顶部G0长按说话，松开发送；Fn+方向编辑或翻记录。配置就绪后可以发送；实际模型或 Agent 错误会显示在聊天页。</p></section>");
+  html+=F("</select><select name='mode'><option value='studio'");
+  if(agentPreference(agentSelection.active)==official_selection::Preference::Studio)html+=F(" selected");
+  html+=F(">Studio模型</option><option value='native'");
+  if(agentPreference(agentSelection.active)==official_selection::Preference::Native)html+=F(" selected");
+  html+=F(">原生CLI</option></select><button class='btn primary' type='submit'>选择 Agent</button></form><p class='hint'>首页 Tab 切换 Studio模型与原生CLI。选择页左 , 或上 ; 选前一个，右 / 或下 . 选后一个，无需 Fn。OK 进入对话，Esc 返回。对话页直接打字、OK发送；Fn+空格或顶部G0长按说话，松开发送；Fn+方向编辑或翻记录。配置就绪后可以发送；实际模型或 Agent 错误会显示在聊天页。</p></section>");
 
   html += F("<section class='card'><h2>省电</h2>");
   html += F("<form method='post' action='/device/power-save'><div class='field'><span class='label'>无交互后自动待机 <output id='idle-output'>");
@@ -2390,31 +2471,6 @@ void sendOtaPage(const String &notice = "") {
   server.send(200, F("text/html; charset=utf-8"), html);
 }
 
-void sendOtaUpdatingPage() {
-  String html = pageStart(F("OTA"));
-  html += F("<section class='panel'><p class='meta'>Ekko Studio Cardputer ADV</p><h1>OTA</h1><p class='lead'>固件正在更新</p>");
-  html += F("<p class='hint'>固件正在下载并写入，请勿关闭单片机或断开电源。设备会自动重启，页面检测到恢复后会弹窗提示完成。</p>");
-  html += F("<div class='info-grid'>");
-  appendInfoRow(html, F("固件版本"), String(kMcuFirmwareVersion));
-  appendInfoRow(html, F("当前状态"), F("正在更新，请勿关闭单片机"));
-  appendInfoRow(html, F("服务端"), activeDeviceUrl.length() > 0 ? activeDeviceUrl : String(F("未连接")));
-  html += F("</div><p id='ota-status' class='hint'>等待设备重启...</p>");
-  html += F("<script>");
-  html += F("let seenOffline=false,done=false,start=Date.now();");
-  html += F("const s=document.getElementById('ota-status');");
-  html += F("async function poll(){if(done)return;");
-  html += F("try{const r=await fetch('/health?ota='+Date.now(),{cache:'no-store'});");
-  html += F("if(r.ok&&seenOffline){done=true;s.textContent='固件更新完成，设备已恢复在线。';alert('固件更新完成，设备已重启。');location.href='/ota';return;}");
-  html += F("if(r.ok){s.textContent='正在写入固件，请勿关闭单片机...';}");
-  html += F("}catch(e){seenOffline=true;s.textContent='设备正在重启，请等待恢复...';}");
-  html += F("if(Date.now()-start>120000&&!done){done=true;s.textContent='更新超时，请重新打开设备页面确认状态。';alert('更新状态确认超时，请重新打开设备页面确认。');return;}");
-  html += F("setTimeout(poll,1500)}setTimeout(poll,3000);");
-  html += F("</script>");
-  html += F("</section>");
-  html += pageEnd();
-  server.send(200, F("text/html; charset=utf-8"), html);
-}
-
 void handleOtaCheck() {
   server.send(409, F("application/json"), F("{\"ok\":false,\"error\":\"cardputer_s3_usb_update_required\"}"));
 }
@@ -2462,20 +2518,19 @@ void handleDevicePowerSave() {
 
 
 void handleDeviceAgent() {
-  String id = server.arg(F("runtime"));
-  if (id == F("ekko")) id = F("ekko-agent");
-  int index = nativeAgentIndex(id.c_str());
-  if (index < 0 || !requestCardputerAgentSelection(static_cast<size_t>(index))) {
-    server.send(409, F("text/plain; charset=utf-8"), F("Agent 选择未提交，请先登录并连接原生后台，或等待当前选择完成"));
-    return;
+  const String agent=server.arg(F("runtime"));const int index=nativeAgentIndex(agent.c_str());
+  const String mode=server.arg(F("mode"));
+  if(index<0) {server.send(400,F("text/plain; charset=utf-8"),F("Agent 不存在"));return;}
+  if(mode.length()) {
+    if(mode!="studio" && mode!="native") {server.send(400,F("text/plain; charset=utf-8"),F("模式无效"));return;}
+    if(!setAgentPreference(size_t(index),mode=="native"?official_selection::Preference::Native:official_selection::Preference::Studio)) {
+      server.send(409,F("text/plain; charset=utf-8"),F("当前无法切换模式，请查看设备提示"));return;
+    }
   }
-  // The native page and keyboard share one browse target. Otherwise the ACK
-  // coalescer would immediately select the previous keyboard position again.
-  agentSelection.browse = static_cast<size_t>(index);
-  conversationView.back();
-  oledDirty = true;
-  server.sendHeader(F("Location"), F("/device"), true);
-  server.send(303, F("text/plain"), F(""));
+  if(!requestCardputerAgentSelection(size_t(index))) {
+    server.send(409,F("text/plain; charset=utf-8"),F("请先返回 Agent 首页再选择"));return;
+  }
+  oledDirty=true;server.sendHeader(F("Location"),F("/device"),true);server.send(303,F("text/plain"),"");
 }
 
 void addManualDevice() {
@@ -2506,35 +2561,21 @@ String mcuLoginPayload(const String &account, const String &password) {
   String payload;serializeJson(body,payload);return payload;
 }
 
-class LoginResponse final:public Stream {
- public:
-  String body;bool overflow=false;
-  int available() override {return 0;}
-  int read() override {return -1;}
-  int peek() override {return -1;}
-  void flush() override {}
-  size_t write(uint8_t byte) override {return write(&byte,1);}
-  size_t write(const uint8_t* bytes,size_t count) override {
-    if(count>8192-body.length()) {overflow=true;return 0;}
-    const size_t before=body.length();body.concat(reinterpret_cast<const char*>(bytes),count);
-    return body.length()==before+count?count:0;
-  }
-};
-
 bool runMcuLogin(LanDevice &device, const String &account, const String &password,
                  bool useRemoteLogin = false, bool manualLogin = false) {
   if(useRemoteLogin || device.remoteSource || !mcuDeviceCode().length()) {
     rememberMcuLoginResult(-1,F("此固件仅支持局域网直连，请选择同网电脑"));return false;
   }
+  if(studioAuthJob.busy()) {cancelMcuReauth();rememberMcuLoginResult(-1,F("正在停止旧登录，请稍后重试"));return false;}
   if(manualLogin) profileFormProof="";
-  cardputerTickKeyClick(false);disconnectMcuSocketClient();chatModel.hideContext();
+  cardputerTickKeyClick(false);disconnectMcuSocketClient();leaveConversationScope();
   String endpoint=device.url;while(endpoint.endsWith("/")) endpoint.remove(endpoint.length()-1);
   endpoint+=F("/api/auth/mcu-login");
   HTTPClient http;http.setReuse(false);http.setConnectTimeout(5000);http.setTimeout(kMcuLoginTimeoutMs);
   if(!http.begin(endpoint)) {rememberMcuLoginResult(-1,F("无法打开登录接口"));return false;}
   http.addHeader(F("Content-Type"),F("application/json"));
   http.addHeader(F("X-Hermes-Device-Id"),deviceId());
-  http.addHeader(F("X-Hermes-Device-Name"),F("Ekko Studio Cardputer ADV"));
+  http.addHeader(F("X-Hermes-Device-Name"),F("M5Stack Cardputer-Adv"));
   const int code=http.POST(mcuLoginPayload(account,password));
   // Login response is bounded; never store or log the body containing a JWT.
   LoginResponse received;
@@ -2565,46 +2606,6 @@ bool runMcuLogin(LanDevice &device, const String &account, const String &passwor
 
 
 
-bool savedCredentialsForDevice(const LanDevice &device, String *account, String *password) {
-  if (!account || !password) return false;
-  prefs.begin("stockLan", true);
-  String activeKey = prefs.getString("active_key", "");
-  String activeAddr = prefs.getString("active_addr", "");
-  String activeUrl = prefs.getString("active_url", "");
-  String relayUrl = prefs.getString("relay_url", "");
-  bool activeRemote = prefs.getBool("active_remote", relayUrl.length() > 0);
-  *account = prefs.getString("cur_account", "");
-  *password = prefs.getString("cur_password", "");
-  prefs.end();
-  bool isCurrent = activeIdentityMatchesDevice(device, activeKey, activeAddr, activeUrl, activeRemote);
-  if (!isCurrent) return false;
-  account->trim();
-  return account->length() > 0 && password->length() > 0;
-}
-
-bool autoLoginDevice(LanDevice &device) {
-  if (mcuSocketReconnectBlocked && mcuSocketRelayUrl.length() > 0) return false;
-  String account;
-  String password;
-  if (!savedCredentialsForDevice(device, &account, &password)) return false;
-  Serial.printf("Auto MCU login target=%s url=%s profile=%s\n",
-                lanDeviceKey(device).c_str(), device.url.c_str(), selectedProfile.c_str());
-  bool ok = runMcuLogin(device, account, password, shouldUseRemoteLogin(device));
-  if (ok && selectedProfile.length() > 0) {
-    String key = lanDeviceKey(device);
-    String addr = lanAddressKey(device);
-    persistProfileForDevice(key, addr, selectedProfile, device.url, shouldUseRemoteLogin(device));
-    device.profile = selectedProfile;
-    device.loggedIn = true;
-    device.remoteLogin = shouldUseRemoteLogin(device);
-    pendingProfileDeviceKey = key;
-    pendingProfileRemoteSource = shouldUseRemoteLogin(device);
-    activeDeviceKey = key;
-    activeDeviceUrl = device.url;
-  }
-  return ok;
-}
-
 void persistRelayReplaced(bool replaced) {
   prefs.begin("stockLan", false);
   if (replaced) {
@@ -2616,55 +2617,13 @@ void persistRelayReplaced(bool replaced) {
   mcuSocketReconnectBlocked = replaced;
 }
 
-native_reauth::Outcome reauthActiveDevice(const String &reason = "", const String &machineId = "") {
-  // Reset this attempt before any early return: an old 401/403 must not turn
-  // discovery failure, lost Wi-Fi or missing saved credentials into rejection.
-  rememberMcuLoginResult(0, F("尚未发起重登请求"));
-  if (!wifiReady || WiFi.status() != WL_CONNECTED || activeDeviceUrl.length() == 0 ||
-      mcuSocketReconnectBlocked) return native_reauth::Outcome::NoAttempt;
-  Serial.printf("Reauth active MCU device reason=%s machine=%s active=%s\n",
-                reason.c_str(), machineId.c_str(), activeDeviceUrl.c_str());
-  setOledStatus(OledMode::Think, F("LOGIN"), F("REAUTH"), 35);
-
-  int activeIndex = -1;
-  for (int i = 0; i < lanDeviceCount; ++i) {
-    if (isActiveLanDevice(lanDevices[i])) {
-      activeIndex = i;
-      break;
-    }
-  }
-  if (activeIndex < 0) {
-    refreshDeviceDiscovery();
-    for (int i = 0; i < lanDeviceCount; ++i) {
-      if (isActiveLanDevice(lanDevices[i])) {
-        activeIndex = i;
-        break;
-      }
-    }
-  }
-
-  if (activeIndex < 0) {
-    return native_reauth::Outcome::NoAttempt;
-  }
-  if (!native_reauth::sameDeviceBinding(activeDeviceKey.c_str(), lanDeviceKey(lanDevices[activeIndex]).c_str())) {
-    Serial.println(F("Reauth skipped: discovered target does not match the complete saved machine identity"));
-    return native_reauth::Outcome::NoAttempt;
-  }
-  if (machineId.length() > 0 && lanDevices[activeIndex].id != machineId) {
-    Serial.printf("Skip reauth for non-active machine event=%s active=%s\n",
-                  machineId.c_str(), lanDevices[activeIndex].id.c_str());
-    return native_reauth::Outcome::NoAttempt;
-  }
-  const bool ok = autoLoginDevice(lanDevices[activeIndex]);
-  return native_reauth::loginOutcome(lastMcuLoginCode != 0, ok && mcuAuthToken.length() > 0, lastMcuLoginCode);
-}
-
 native_reauth::Target currentMcuReauthTarget() {
   return {activeDeviceKey.c_str(), activeDeviceUrl.c_str(), mcuSocketRelayUrl.c_str(),
           selectedProfile.c_str(), mcuSocketRelayUrl.length() > 0};
 }
 
 void cancelMcuReauth() {
+  studioAuthJob.cancel();++studioAuthEpoch;
   mcuReauthPolicy.cancel();
   mcuReauthAudioCleanupPending = false;
   pendingMcuReauthAuthInvalid = false;
@@ -2676,6 +2635,7 @@ void cancelMcuReauth() {
 bool mcuReauthBlocksSocket() {
   // Defer runMcuLogin()'s synchronous socket connect until complete(Success):
   // an immediate new auth.invalid must not be consumed by the old attempt.
+  if(studioAuthJob.busy() && !mcuReauthPolicy.matches(currentMcuReauthTarget())) cancelMcuReauth();
   if (mcuReauthAttemptInProgress) return true;
   if (mcuReauthPolicy.active() && !mcuReauthPolicy.matches(currentMcuReauthTarget())) cancelMcuReauth();
   return mcuReauthPolicy.blocksSocket();
@@ -2700,48 +2660,79 @@ void queueMcuReauth(bool authInvalid, const String &reason, const String &machin
   mcuReauthAudioCleanupPending = true;
 }
 
+void applyReauthentication(native_reauth::Outcome outcome) {
+  mcuReauthAttemptInProgress=false;mcuReauthPolicy.complete(outcome,millis());
+  if(outcome==native_reauth::Outcome::BindingChanged) {
+    mcuReauthPolicy.requireManual(currentMcuReauthTarget(),true);
+    setChatNotice("电脑身份变化，请在设备网页重新绑定");return;
+  }
+  if(outcome==native_reauth::Outcome::Success) {
+    cancelMcuReauth();connectMcuSocketClient();setChatNotice("");return;
+  }
+  if(outcome==native_reauth::Outcome::Rejected) {
+    setChatNotice("登录已失效，请在设备网页重新登录");return;
+  }
+  setChatNotice("重登暂时失败，将自动重试");
+}
+
 void tickMcuReauth() {
-  if (!mcuReauthBlocksSocket()) return;
-  if (wsReady || mcuSocketConnected || mcuSocketNamespaceReady) disconnectMcuSocketClient();
-  if (mcuReauthAudioCleanupPending && !audioBusy) {
-    const int discarded = mcuAudioCount;
-    cardputerAudioClear(); // Joins the SDK consumer before discarding its owner.
-    resetListeningMonitor();
-    cancelOfficialVoice();
-    mcuReauthAudioCleanupPending = false;
-    Serial.printf("MCU reauth discarded stale audio queued=%d; saved login preserved\n", discarded);
+  // Completion is polled even after cancellation or a changed native binding.
+  studio_auth::Output output;
+  if(studioAuthJob.poll(output)==studio_auth::Poll::Ready) {
+    const bool current=output.epoch==studioAuthEpoch && mcuReauthPolicy.active() &&
+        mcuReauthPolicy.matches(currentMcuReauthTarget()) && studioAuthTarget==activeDeviceKey+"|"+activeDeviceUrl+"|"+selectedProfile &&
+        wifiReady && WiFi.status()==WL_CONNECTED;
+    mcuReauthAttemptInProgress=false;
+    studioAuthLastError=unsigned(output.error);studioAuthLastStage=unsigned(output.stage);
+    studioAuthStackFree=output.workerStackFreeBytes;studioAuthElapsedMs=output.elapsedMs;
+    if(current) {
+      lastMcuLoginCode=output.httpStatus;
+      auto outcome=output.error==studio_auth::Error::BindingChanged?native_reauth::Outcome::BindingChanged:
+          output.error==studio_auth::Error::Rejected?native_reauth::Outcome::Rejected:native_reauth::Outcome::TransientFailure;
+      if(output.error==studio_auth::Error::Ok) {
+        String token(output.jwt.data());
+        if(token.length()==std::strlen(output.jwt.data()) && token.length() && prefs.begin("stockLan",false)) {
+          const bool saved=prefs.putString("auth_token",token)>0;prefs.end();
+          if(saved) {mcuAuthToken=token;outcome=native_reauth::Outcome::Success;}
+        }
+        for(size_t i=0;i<token.length();++i)token[i]=0;
+      }
+      Serial.printf("[studio-auth] result=%u stage=%u http=%d stack_free=%lu\n",unsigned(output.error),
+          unsigned(output.stage),output.httpStatus,static_cast<unsigned long>(output.workerStackFreeBytes));
+      applyReauthentication(outcome);
+    }
+  }
+  if(studioAuthJob.busy()) return;
+  if(!mcuReauthBlocksSocket()) return;
+  if(wsReady || mcuSocketConnected || mcuSocketNamespaceReady) disconnectMcuSocketClient();
+  if(mcuReauthAudioCleanupPending && !audioBusy) {
+    cardputerAudioClear();cancelOfficialVoice();mcuReauthAudioCleanupPending=false;
   }
   const native_reauth::Conditions conditions{
-      wifiReady && WiFi.status() == WL_CONNECTED,
-      audioBusy || officialVoiceNetworkBusy() || mcuAudioPlaying || mcuAudioCount > 0 || listeningMonitorReady ||
-          chatPendingSend.length() > 0 || restartPending,
+      wifiReady && WiFi.status()==WL_CONNECTED,
+      audioBusy || officialVoiceNetworkBusy() || studioConnectJob.busy() || officialSelectionJob.busy() ||
+          officialHistoryJob.busy() || chatPendingSend.length()>0 || restartPending,
       mcuSocketReconnectBlocked};
-  if (!mcuReauthPolicy.begin(millis(), conditions)) return;
-  mcuReauthAttemptInProgress = true;
-  const native_reauth::Outcome outcome = reauthActiveDevice(pendingMcuReauthReason, pendingMcuReauthMachineId);
-  mcuReauthAttemptInProgress = false;
-  mcuReauthPolicy.complete(outcome, millis());
-  if (outcome == native_reauth::Outcome::Success) {
-    cancelMcuReauth();
-    connectMcuSocketClient();
-    if (!mcuReauthPolicy.blocksSocket()) broadcastMcuStatus();
-    return;
+  if(!mcuReauthPolicy.begin(millis(),conditions)) return;
+  String account,password;
+  bool same=false;
+  if(prefs.begin("stockLan",true)) {
+    const String profile=prefs.getString("cur_profile",prefs.getString("current_profile",""));
+    same=prefs.getString("active_key","")==activeDeviceKey && prefs.getString("active_url","")==activeDeviceUrl &&
+        profile==selectedProfile && !prefs.getBool("active_remote",false) && !mcuSocketRelayUrl.length();
+    if(same) {account=prefs.getString("cur_account","");password=prefs.getString("cur_password","");}
+    prefs.end();
   }
-  if (outcome == native_reauth::Outcome::Rejected) {
-    lastAudioDetail = F("登录被拒绝，请重新登录");
-    setChatNotice("登录已失效，请在设备网页重新登录");
-    setOledStatus(OledMode::Error, F("LOGIN"), F("RELOGIN"), 0);
-    if (pendingMcuReauthInteractionId.length())
-      markMcuInteraction(pendingMcuReauthInteractionId, F("failed"), lastAudioDetail);
-    Serial.printf("MCU reauth rejected http=%d; saved binding and credentials preserved\n", lastMcuLoginCode);
-    return;
-  }
-  lastAudioDetail = F("重登暂时失败，将自动重试");
-  setChatNotice(lastAudioDetail.c_str());
-  setOledStatus(OledMode::Think, F("LOGIN"), F("RETRY"), 25);
-  Serial.printf("MCU reauth deferred result=%s http=%d retry_ms=%lu; saved state preserved\n",
-      outcome == native_reauth::Outcome::NoAttempt ? "not_attempted" : "transient",
-      lastMcuLoginCode, static_cast<unsigned long>(mcuReauthPolicy.retryDelayMs()));
+  auto input=std::unique_ptr<studio_auth::Input>(new(std::nothrow)studio_auth::Input);
+  const String instance=deviceId();
+  const bool valid=input && same && studio_auth::makeInput(*input,activeDeviceUrl.c_str(),activeDeviceKey.c_str(),
+      selectedProfile.c_str(),instance.c_str(),account.c_str(),password.c_str(),++studioAuthEpoch);
+  for(size_t i=0;i<password.length();++i)password[i]=0;
+  for(size_t i=0;i<account.length();++i)account[i]=0;
+  const auto started=valid?studioAuthJob.start(*input):studio_auth::StartResult::Invalid;
+  if(started==studio_auth::StartResult::Started) {
+    studioAuthTarget=activeDeviceKey+"|"+activeDeviceUrl+"|"+selectedProfile;mcuReauthAttemptInProgress=true;
+  } else applyReauthentication(valid?native_reauth::Outcome::TransientFailure:native_reauth::Outcome::Rejected);
 }
 
 void autoLoginSavedDevice() {
@@ -3023,10 +3014,14 @@ bool writeMcuWsBytes(const uint8_t *data, size_t length, uint32_t timeoutMs = 15
   uint32_t startedAt = millis();
   while (written < length) {
     if (!mcuWsClient->connected()) return false;
-    size_t n = mcuWsClient->write(data + written, length - written);
-    if (n > 0) {
-      written += n;
-      startedAt = millis();
+    if(uint32_t(millis()-startedAt)>=timeoutMs)return false;
+    int count=0;
+    if(!mcuSocketRelayUrl.length() && activeDeviceUrl.startsWith("http://")) {
+      count=::send(mcuWsClient->fd(),data+written,length-written,MSG_DONTWAIT);
+      if(count<0 && errno!=EAGAIN && errno!=EWOULDBLOCK && errno!=EINTR)return false;
+    } else count=int(mcuWsClient->write(data+written,length-written));
+    if (count > 0) {
+      written += size_t(count);
       continue;
     }
     if (millis() - startedAt > timeoutMs) return false;
@@ -3038,6 +3033,8 @@ bool writeMcuWsBytes(const uint8_t *data, size_t length, uint32_t timeoutMs = 15
 
 bool sendRawWsFrame(uint8_t opcode, const uint8_t *data, size_t length) {
   if (!mcuWsClient->connected()) return false;
+  const uint32_t frameStarted=millis();
+  constexpr uint32_t frameBudgetMs=1500;
   uint8_t header[14];
   size_t headerLen = 0;
   header[headerLen++] = 0x80 | (opcode & 0x0F);
@@ -3066,7 +3063,8 @@ bool sendRawWsFrame(uint8_t opcode, const uint8_t *data, size_t length) {
     for (size_t i = 0; i < n; ++i) {
       buffer[i] = data[offset + i] ^ mask[(offset + i) & 3];
     }
-    if (!writeMcuWsBytes(buffer, n)) {
+    const uint32_t elapsed=millis()-frameStarted;
+    if(elapsed>=frameBudgetMs || !writeMcuWsBytes(buffer,n,frameBudgetMs-elapsed)) {
       closeMcuSocketTransport(F("partial outgoing frame payload")); return false;
     }
     offset += n;
@@ -3095,14 +3093,107 @@ bool sendMcuSocketJson(const String &json) {
   return sendMcuSocketEvent(type, json);
 }
 
-void sendWsJson(uint8_t, const String &json) {
-  sendMcuSocketJson(json);
+const char* experienceNoticeText() {
+  using N=experience::Notice;
+  switch(experienceController.snapshot().notice) {
+    case N::WaitingForConnection:return "后台暂未连接，正在恢复";
+    case N::NeedsBinding:return "首次使用请打开设备网页登录";
+    case N::Authenticating:return "正在恢复登录，草稿已保留";
+    case N::Activating:return "正在读取所选 Agent 配置";
+    case N::Retrying:return "后台暂未响应，正在重试";
+    case N::TurnBusy:return "当前回复尚未结束，请稍后切换";
+    case N::ReconcileTurn:return "正在核对上一条，未自动重发";
+    case N::ActivationFailed:return "此 Agent 暂不可用，请检查配置";
+    case N::FactoryUnavailable:return "原厂固件不可用";
+    case N::GenerationExhausted:return "操作次数已达上限，请重启";
+    case N::None:return "";
+  }
+  return "";
+}
+
+void applyExperienceEffects() {
+  experience::Effect effect;
+  while(experienceController.takeEffect(effect)) {
+    if(effect.kind==experience::EffectKind::Activate) {
+      if(selectionRetryGeneration!=effect.generation) {selectionRetryGeneration=effect.generation;officialSelectionRetries=0;}
+      if(queueAgentActivation(effect.agent)) activationGeneration=effect.generation;
+      else {
+        experienceController.dispatch(experience::Event::activationDeferred(effect.generation));
+        officialSelectionNotBeforeMs=millis()+500;
+      }
+    } else if(effect.kind==experience::EffectKind::CancelActivation) {
+      officialSelectionQueued=false;agentSelection.pending=false;officialSelectionJob.cancel();
+      if(!officialSelectionJob.busy()) {
+        experienceController.dispatch(experience::Event::activationFinished(effect.generation,experience::Outcome::Cancelled));
+        activationGeneration=0;
+      }
+    } else returnToFactoryMenu();
+  }
+  agentSelection.browse=experienceController.snapshot().desiredAgent;
+}
+
+void tickExperience() {
+  const String binding=activeDeviceKey+"|"+selectedProfile+"|"+officialAccount;
+  if(experienceBindingObserved && binding!=experienceBinding) {
+    leaveConversationScope();experienceController.dispatch(experience::Event::bindingChanged());
+  }
+  experienceBinding=binding;experienceBindingObserved=true;
+  const auto connection=!wifiReady || WiFi.status()!=WL_CONNECTED?experience::Connection::Offline:
+      mcuReauthPolicy.bindingChanged() || mcuSocketReconnectBlocked || mcuReauthPolicy.rejected() ||
+      !activeDeviceUrl.length() || !selectedProfile.length() || (!mcuAuthToken.length() && !mcuReauthPolicy.active())?
+          experience::Connection::NeedsBinding:
+      mcuReauthAttemptInProgress || mcuReauthAudioCleanupPending || mcuReauthPolicy.blocksSocket()?
+          experience::Connection::Authenticating:
+      mcuSocketNamespaceReady?experience::Connection::Ready:experience::Connection::Connecting;
+  experienceController.dispatch(experience::Event::connection(connection));
+  synchronizeSendRecovery();
+  const auto turn=chatPendingSend.length()?experience::TurnPhase::Submitting:
+      chatRemoteRunActive?experience::TurnPhase::Running:
+      officialResumePending || officialResumeQueued?experience::TurnPhase::Reconciling:
+      chatSendUnknown?experience::TurnPhase::Uncertain:
+      officialVoiceNetworkBusy()?experience::TurnPhase::Running:experience::TurnPhase::Idle;
+  experienceController.dispatch(experience::Event::turn(turn));
+  const auto& state=experienceController.snapshot();
+  if(state.activation==experience::ActivationPhase::RetryWait &&
+      static_cast<int32_t>(millis()-officialSelectionNotBeforeMs)>=0)
+    experienceController.dispatch(experience::Event::retryDue(state.activationGeneration));
+  applyExperienceEffects();
+}
+
+bool setAgentPreference(size_t index,official_selection::Preference value) {
+  if(index>=kNativeAgentCount || (value!=official_selection::Preference::Studio && value!=official_selection::Preference::Native))return false;
+  const auto* route=official_studio::agentRoute(kNativeAgents[index].id);
+  if((value==official_selection::Preference::Native && !route->global) ||
+      (value==official_selection::Preference::Studio && !route->scoped)) {
+    setChatNotice("所选 Agent 不支持此模式");return false;
+  }
+  if(agentPreference(index)==value)return true;
+  if(experienceController.snapshot().exitPending)return false;
+  if(chatPendingSend.length() || chatRemoteRunActive || chatSendUnknown || officialResumePending || officialResumeQueued || officialVoiceNetworkBusy()) {
+    setChatNotice("当前对话尚未结束，暂不能切模式");return false;
+  }
+  char key[16];snprintf(key,sizeof(key),"mode_%u",unsigned(index));
+  if(!prefs.begin("stockLan",false)) {setChatNotice("模式保存失败，请重试");return false;}
+  const bool saved=prefs.putUChar(key,uint8_t(value))>0;prefs.end();
+  if(!saved) {setChatNotice("模式保存失败，请重试");return false;}
+  cancelOfficialVoice();officialHistoryJob.cancel();
+  experienceController.dispatch(experience::Event::bindingChanged());applyExperienceEffects();
+  leaveConversationScope();agentSelection.disconnect();agentPreferences[index]=value;
+  agentSelectionError="";setChatNotice("");oledDirty=true;return true;
 }
 
 bool requestCardputerAgentSelection(size_t index) {
-  if(!mcuSocketNamespaceReady || !mcuAuthToken.length() || !agentSelection.request(index)) return false;
+  if(index>=kNativeAgentCount) return false;
+  if(chatPageOpen() && index!=experienceController.snapshot().desiredAgent) return false;
+  if(!experienceController.dispatch(experience::Event::browse(int(index)-int(experienceController.snapshot().desiredAgent)))) return false;
+  const bool accepted=experienceController.dispatch(experience::Event::open());
+  applyExperienceEffects();oledDirty=true;return accepted;
+}
+
+bool queueAgentActivation(size_t index) {
+  if(officialSelectionJob.busy() || !mcuSocketNamespaceReady || !mcuAuthToken.length() || !agentSelection.request(index)) return false;
   pendingAgentProfile=selectedProfile;agentSelectionStartedMs=millis();agentSelectionError="";
-  cancelOfficialVoice();officialSelectionQueued=true;officialSelectionNotBeforeMs=millis();officialSelectionRetries=0;
+  cancelOfficialVoice();officialSelectionQueued=true;officialSelectionNotBeforeMs=millis();
   oledDirty=true;return true;
 }
 
@@ -3195,13 +3286,23 @@ void tickNativeChat() {
         strcmp(chatModel.agentId(), kNativeAgents[agentSelection.active].id) != 0 ||
         !chatModel.context() || selectedProfile != chatModel.context()->profile ||
         binding != chatModel.context()->binding) {
+      chatModel.setSendUnknown(chatSendUnknown);
       const NativeChatResult result = chatModel.activate(kNativeAgents[agentSelection.active].id,
                                                         selectedProfile.c_str(), agentSelection.version, binding.c_str());
       chatActivationAttemptVersion = agentSelection.version;
+      chatSendUnknown=chatModel.context() && chatModel.context()->send_unknown;
+      sendRecovery=send_recovery::Recovery();synchronizeSendRecovery();
       if (chatPendingSend.length()) { chatPendingSend = ""; chatSendUnknown = true; }
-      setChatNotice("");
+      setChatNotice(chatSendUnknown ? "发送结果未确认，请先 Fn+R 核对" : "");
       if (result != NativeChatResult::Ok) setChatNotice(result == NativeChatResult::DraftCapacity ?
           "草稿已满，请先发送或清空旧草稿" : "当前会话不可用");
+      else if (!chatSendUnknown && officialMode == official_studio::Mode::Scoped &&
+               officialModel.origin == official_studio_models::Origin::CompatibleDefault) {
+        // The official client may select a compatible Studio provider when
+        // this Agent cannot use the Profile default. Show the accepted public
+        // identity once; a normal send clears this notice and restores space.
+        setChatNotice(String("兼容模型 ") + officialModel.provider.data() + "/" + officialModel.model.data());
+      }
       chatHistoryRequest = ""; chatBottomOffset = 0; chatHistoryLoadedVersion = 0;
       chatFocusMessage = ""; chatRemoteRunActive = chatLiveEventsSeen = false;
       chatLiveRequest = "";
@@ -3210,7 +3311,7 @@ void tickNativeChat() {
       ++chatUiRevision;
     }
   }
-  const bool opened = conversationView.conversation();
+  const bool opened = chatPageOpen();
   if (opened && !chatWasOpen) {
     if (!mcuInteractionActive || !chatModel.messageCount()) chatHistoryLoadedVersion = 0;
     chatBottomOffset = 0;
@@ -3222,7 +3323,7 @@ void tickNativeChat() {
   if (chatHistoryRequest.length() && millis() - chatHistoryAtMs > (officialStudioDirect()?45000U:12000U)) {
     if(officialStudioDirect()) officialHistoryJob.cancel();
     chatHistoryRequest = ""; chatFocusMessage = ""; chatPageFocus = NativeChatBrowseFocus::Preserve;
-    setChatNotice("记录同步超时，Tab 后 R 重试");
+    setChatNotice("记录同步超时，Fn+R 重试");
   }
   if (chatPendingSend.length() && millis() - chatSendAtMs > 15000) {
     chatPendingSend = ""; chatSendUnknown = true;
@@ -3247,9 +3348,25 @@ void tickNativeChat() {
         selectedProfile != chatModel.context()->profile) {
       setChatNotice("会话尚未就绪，未写入其他草稿"); continue;
     }
-    if (key.kind == NativeChatKeyKind::Refresh) {
-      if (mcuInteractionActive && chatLiveEventsSeen) setChatNotice("回复中，结束后可刷新记录");
-      else { if(officialStudioDirect()) officialHistorySkippingTools=false;requestChatHistory(); chatBottomOffset = 0; }
+    if(key.kind==NativeChatKeyKind::AcknowledgeSend) {
+      synchronizeSendRecovery();
+      if(sendRecovery.acknowledge(officialEpoch)) {
+        chatSendUnknown=false;chatModel.setSendUnknown(false);setChatNotice("草稿已保留，按 OK 可发送");
+      } else setChatNotice(chatSendUnknown?"请先 Fn+R 同步并查看记录":"当前没有待核对的发送");
+      ++chatUiRevision;oledDirty=true;continue;
+    }
+    if(key.kind==NativeChatKeyKind::Refresh) {
+      if(mcuInteractionActive && chatLiveEventsSeen) setChatNotice("回复中，结束后可刷新记录");
+      else if(officialHistoryJob.busy() || chatHistoryRequest.length() || officialResumePending)
+        setChatNotice("正在同步记录，请稍后重试");
+      else {
+        officialHistorySkippingTools=false;synchronizeSendRecovery();
+        if(chatSendUnknown) {
+          sendRecovery.requestReview(officialEpoch);officialResumeQueued=true;
+          setChatNotice("正在核对结果，未自动重发");
+        }
+        requestChatHistory();chatBottomOffset=0;
+      }
       continue;
     }
     if (key.kind == NativeChatKeyKind::ScrollUp || key.kind == NativeChatKeyKind::ScrollDown) {
@@ -3313,6 +3430,7 @@ void tickNativeChat() {
 void returnToFactoryMenu() {
   factoryBootError = cardputerSelectFactoryBoot();
   if (factoryBootError != ESP_OK) {
+    experienceController.dispatch(experience::Event::factoryFailed());
     agentSelectionError = "factory_unavailable";
     oledDirty = true;
     return;
@@ -3328,140 +3446,54 @@ void returnToFactoryMenu() {
 }
 
 void tickCardputerInput() {
-  cardputerSetConversationMode(conversationView.conversation());
-  cardputerPoll();
+  cardputerSetConversationMode(chatPageOpen());cardputerPoll();
+  tickExperience();
   int key;
-  while ((key = cardputerNavigation()) != 0) {
+  while((key=cardputerNavigation())!=0) {
     noteMcuActivity();
-    if (key == 3) {
-      if (conversationView.conversation() || conversationView.waiting()) conversationView.back();
-      else returnToFactoryMenu();
-    } else if (key == 2) {
-      if (!conversationView.conversation() || !cardputerChatAvailable() ||
-          !agentSelection.ready() || agentSelectionError.length() != 0) {
-        agentSelectionError = "";
-        conversationView.requestOpen(agentSelection, selectedProfile.c_str(), cardputerChatAvailable());
-        if (!conversationView.conversation() && !agentSelection.pending)
-          requestCardputerAgentSelection(agentSelection.browse);
-      }
-    } else if (key == -1 || key == 1) {
-      conversationView.back();
-      agentSelection.move(key);
-      if (!agentSelection.pending)
-        requestCardputerAgentSelection(agentSelection.browse);
+    if(key==3) {
+      cancelOfficialVoice();cardputerSuppressGestureUntilReleased();
+      experienceController.dispatch(experience::Event::back());
+    } else if(key==2) experienceController.dispatch(experience::Event::open());
+    else if(key==4) {
+      const auto index=experienceController.snapshot().desiredAgent;
+      const auto next=agentPreference(index)==official_selection::Preference::Native?
+          official_selection::Preference::Studio:official_selection::Preference::Native;
+      setAgentPreference(index,next);
     }
-    oledDirty = true;
+    else if(key==-1 || key==1) experienceController.dispatch(experience::Event::browse(key));
+    applyExperienceEffects();oledDirty=true;
   }
-  const uint32_t agentAckTimeoutMs = officialStudioDirect() ? 100000U : kMcuRemoteAgentAckTimeoutMs;
-  if (native_remote::requestExpired(millis(), agentSelection.pending, agentSelectionStartedMs, agentAckTimeoutMs)) {
-    agentSelection.pending = agentSelection.confirmed = false;
-    agentSelectionError = F("native_agent_ack_timeout");
-    // A relay can keep MCU TCP alive while its desktop reconnects. Re-open
-    // with the saved binding and re-select the Agent after normal backoff.
-    closeMcuSocketTransport(F("native Agent ACK timeout"));
-    oledDirty = true;
+  if(native_remote::requestExpired(millis(),agentSelection.pending,agentSelectionStartedMs,100000U)) {
+    // Cancellation is not completion. The old worker keeps its generation
+    // until poll releases it, even across a new transport connection.
+    officialSelectionJob.cancel();agentSelection.pending=agentSelection.confirmed=false;
+    agentSelectionError="native_agent_ack_timeout";
+    closeMcuSocketTransport(F("Agent activation timeout"));oledDirty=true;
   }
-  if (conversationView.synchronize(agentSelection, selectedProfile.c_str(),
-                                  cardputerChatAvailable(), agentSelectionError.length() != 0))
-    oledDirty = true;
-  cardputerSetConversationMode(conversationView.conversation());
-  tickNativeChat();
+  cardputerSetConversationMode(chatPageOpen());tickNativeChat();
 }
 
 void broadcastMcuStatus() {
   sendMcuSocketJson(mcuStatusJson());
 }
 
-void stopMcuAudioQueueByButton() {
-  cancelOfficialVoice();
-  if(chatRemoteRunActive || chatPendingSend.length()) {
-    officialControlEvent("abort");officialResumeQueued=true;
-  }
-}
-
-void clearMcuSessionByButton() { officialControlEvent("new_session"); }
-
-void triggerBootVoiceTurn() { startOfficialRecording(); }
-
 void handleBootButton() {
-  bool bootPressed = cardputerTalkPressed();
-  uint32_t now = millis();
-  if (bootPressed) noteMcuActivity();
-
-  if (!bootInputArmed) {
-    bootWasPressed = false;
-    bootLongPressHandled = false;
-    bootClickPending = false;
-    bootSecondClickStarted = false;
-    audioInterruptPressStartedAtMs = 0;
-    if (now < kBootInputArmDelayMs || bootPressed) {
-      bootReleaseStartedAtMs = 0;
-      return;
-    }
-    if (bootReleaseStartedAtMs == 0) {
-      bootReleaseStartedAtMs = now;
-      return;
-    }
-    if (now - bootReleaseStartedAtMs < kBootDebounceMs) return;
-    bootInputArmed = true;
-    lastBootButtonAtMs = now;
-    Serial.println(F("BOOT button armed after startup release"));
-    return;
+  const uint8_t events=cardputerGesture();
+  if(events==DeviceGesture::None) return;
+  noteMcuActivity();
+  if(events&DeviceGesture::ShortBack) {
+    cancelOfficialVoice();
+    experienceController.dispatch(experience::Event::back());applyExperienceEffects();
   }
-
-  if (bootPressed && !bootWasPressed && now - lastBootButtonAtMs > kBootDebounceMs) {
-    if (bootClickPending && now - bootClickPendingAtMs > kBootDoubleClickMs) {
-      bootClickPending = false;
-      bootSecondClickStarted = false;
-      lastBootButtonAtMs = now;
-      stopMcuAudioQueueByButton();
-      return;
-    }
-    if (bootClickPending && now - bootClickPendingAtMs <= kBootDoubleClickMs) {
-      bootSecondClickStarted = true;
-    }
-    bootWasPressed = true;
-    bootLongPressHandled = false;
-    bootPressedAtMs = now;
-    return;
+  if((events&DeviceGesture::VoiceStart) && cardputerTalkPressed()) {
+    if(chatPageOpen()) startOfficialRecording();
+    else {setChatNotice("按 OK 进入聊天后说话");cardputerSuppressGestureUntilReleased();}
   }
-
-  if (bootPressed && bootWasPressed && !bootLongPressHandled &&
-      now - bootPressedAtMs >= kBootLongPressMs) {
-    bootLongPressHandled = true;
-    bootClickPending = false;
-    bootSecondClickStarted = false;
-    lastBootButtonAtMs = now;
-    triggerBootVoiceTurn();
-    return;
-  }
-
-  if (!bootPressed && bootWasPressed) {
-    bootWasPressed = false;
-    uint32_t heldMs = now - bootPressedAtMs;
-    if (!bootLongPressHandled && heldMs >= kBootDebounceMs) {
-      if (bootClickPending && (bootSecondClickStarted || now - bootClickPendingAtMs <= kBootDoubleClickMs)) {
-        bootClickPending = false;
-        bootSecondClickStarted = false;
-        lastBootButtonAtMs = now;
-        clearMcuSessionByButton();
-      } else {
-        bootClickPending = true;
-        bootSecondClickStarted = false;
-        bootClickPendingAtMs = now;
-      }
-    }
-  }
-
-  if (!bootWasPressed && bootClickPending && now - bootClickPendingAtMs > kBootDoubleClickMs) {
-    bootClickPending = false;
-    bootSecondClickStarted = false;
-    lastBootButtonAtMs = now;
-    stopMcuAudioQueueByButton();
-  }
+  // Capture owns joining/draining before STT. Release is observed by its
+  // existing bounded tick; no button handler directly starts a network task.
+  oledDirty=true;
 }
-
-
 
 String mcuSocketAuthJson() {
   JsonDocument auth;const String instance=deviceId(),code=mcuDeviceCode();
@@ -3483,62 +3515,6 @@ void sendMcuReady() {
   body["agentRuntime"]=mcuAgentRuntimeValue();body["capabilities"]["display"]=true;
   body["capabilities"]["audio_playback"]=true;
   String json;serializeJson(body,json);sendMcuSocketEvent(F("mcu.ready"),json);broadcastMcuStatus();
-}
-
-bool parseSocketIoEvent(const String &message, String *event, String *json) {
-  int arrayStart = message.indexOf('[');
-  if (arrayStart < 0) return false;
-  int firstQuote = message.indexOf('"', arrayStart);
-  if (firstQuote < 0) return false;
-  int secondQuote = message.indexOf('"', firstQuote + 1);
-  if (secondQuote < 0) return false;
-  int comma = message.indexOf(',', secondQuote + 1);
-  int arrayEnd = message.lastIndexOf(']');
-  if (comma < 0 || arrayEnd <= comma) return false;
-  String parsedEvent = message.substring(firstQuote + 1, secondQuote);
-  int payloadStart = comma + 1;
-  while (payloadStart < arrayEnd && isspace(static_cast<unsigned char>(message[payloadStart]))) ++payloadStart;
-  int payloadEnd = arrayEnd;
-  if (payloadStart < arrayEnd && message[payloadStart] == '{') {
-    int depth = 0;
-    bool inString = false;
-    bool escaped = false;
-    for (int i = payloadStart; i < arrayEnd; ++i) {
-      char c = message[i];
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-      if (c == '\\') {
-        escaped = true;
-        continue;
-      }
-      if (c == '"') {
-        inString = !inString;
-        continue;
-      }
-      if (inString) continue;
-      if (c == '{') {
-        ++depth;
-      } else if (c == '}') {
-        --depth;
-        if (depth == 0) {
-          payloadEnd = i + 1;
-          break;
-        }
-      }
-    }
-  }
-  String parsedJson = message.substring(payloadStart, payloadEnd);
-  parsedJson.trim();
-  if (!parsedJson.startsWith("{")) {
-    parsedJson = String(F("{\"type\":\"")) + escapeJson(parsedEvent) + F("\"}");
-  } else if (jsonStringValue(parsedJson, F("type")).length() == 0) {
-    parsedJson = String(F("{\"type\":\"")) + escapeJson(parsedEvent) + F("\",") + parsedJson.substring(1);
-  }
-  if (event) *event = parsedEvent;
-  if (json) *json = parsedJson;
-  return parsedEvent.length() > 0;
 }
 
 void handleSocketIoText(const String &message) {
@@ -3566,7 +3542,7 @@ void handleSocketIoText(const String &message) {
     officialNamespaces.acknowledge(message.c_str());
     mcuSocketNamespaceReady=officialNamespaces.chat(); chatProtocolReady=mcuSocketNamespaceReady;
     Serial.println(F("Socket.IO official namespace /chat-run connected"));
-    requestCardputerAgentSelection(agentSelection.browse);return;
+    tickExperience();return;
   }
   const bool statusGone=official_connection::Namespaces::packet(message.c_str(),"41/global-agent") ||
       official_connection::Namespaces::packet(message.c_str(),"44/global-agent");
@@ -3604,22 +3580,6 @@ void handleSocketIoText(const String &message) {
     return;
   }
 
-}
-
-bool readMcuWsBytes(uint8_t *buffer, size_t length, uint32_t timeoutMs = 100) {
-  size_t read = 0;
-  uint32_t startedAt = millis();
-  while (read < length && millis() - startedAt < timeoutMs) {
-    int available = mcuWsClient->available();
-    if (available > 0) {
-      int n = mcuWsClient->read(buffer + read, min(static_cast<size_t>(available), length - read));
-      if (n > 0) read += static_cast<size_t>(n);
-    } else {
-      delay(1);
-      yield();
-    }
-  }
-  return read == length;
 }
 
 void resetMcuSocketReconnect() {
@@ -3709,9 +3669,8 @@ void disconnectMcuSocketClient() {
     chatPendingSend = ""; chatSendUnknown = true;
     setChatNotice("连接中断，草稿保留；请核对发送结果");
   }
-  if (mcuWsPlainClient.connected()) mcuWsPlainClient.stop();
-  if (mcuWsSecureClient.connected()) mcuWsSecureClient.stop();
-  mcuWsClient = &mcuWsPlainClient;
+  studioConnectJob.cancel();++studioConnectEpoch;
+  if(mcuWsClient->connected())mcuWsClient->stop();
   wsReady = false;
   mcuSocketConnected = false;
   mcuSocketNamespaceReady = false;mcuStatusNamespaceReady=false;officialNamespaces.reset();statusReconnectAtMs=0;
@@ -3720,7 +3679,7 @@ void disconnectMcuSocketClient() {
 
 void tickMcuSocketReconnect() {
   if (mcuReauthBlocksSocket()) { nextMcuSocketReconnectAtMs = 0; return; }
-  if (wsReady || mcuSocketConnected || mcuSocketNamespaceReady) return;
+  if (wsReady || mcuSocketConnected || mcuSocketNamespaceReady || studioConnectJob.busy()) return;
   if (!wifiReady || WiFi.status() != WL_CONNECTED ||
       activeDeviceUrl.length() == 0 || mcuAuthToken.length() == 0 ||
       mcuSocketReconnectBlocked) {
@@ -3813,76 +3772,40 @@ void connectMcuSocketClient() {
     return;
   }
 
-  if (scheme == F("https")) {
-    cardputerTickKeyClick(false);
-    native_tls::configureTrust(mcuWsSecureClient);
-    mcuWsSecureClient.setHandshakeTimeout(kMcuRemoteTlsHandshakeTimeoutSec);
-    mcuWsClient = &mcuWsSecureClient;
+  if(studioAuthJob.busy() || studioConnectJob.busy() || officialSelectionJob.busy() || officialHistoryJob.busy() || officialVoiceNetworkBusy()) {
+    scheduleMcuSocketReconnect();return;
+  }
+  const String socketPath=String("/socket.io/?EIO=4&transport=websocket&profile=")+officialUrlEncode(selectedProfile);
+  studio_connect::Input input;
+  if(!studio_connect::makeInput(input,host.c_str(),port,scheme=="https",socketPath.c_str(),++studioConnectEpoch)) {
+    setChatNotice("后台地址不受支持，请重新绑定");return;
+  }
+  const auto started=studioConnectJob.start(input);
+  if(started==studio_connect::StartResult::Started) studioConnectTarget=targetKey;
+  else scheduleMcuSocketReconnect();
+}
+
+void tickStudioConnect() {
+  studio_connect::Output output;
+  if(studioConnectJob.poll(output)!=studio_connect::Poll::Ready) return;
+  const bool current=output.epoch==studioConnectEpoch && wifiReady && WiFi.status()==WL_CONNECTED &&
+      studioConnectTarget==expectedMcuSocketTargetKey() && !mcuReauthBlocksSocket();
+  const bool accepted=current && output.error==studio_connect::Error::Ok && output.client;
+  Serial.printf("[studio-connect] result=%u handshake=%u http=%u elapsed=%lu accepted=%d stack_free=%lu\n",
+      unsigned(output.error),unsigned(output.handshakeError),output.httpStatus,
+      static_cast<unsigned long>(output.elapsedMs),accepted,static_cast<unsigned long>(output.workerStackFreeBytes));
+  if(accepted) {
+    // Parser no longer borrows any previous transport here, at the outer tick.
+    resetOfficialSocketReader();connectedSocket=std::move(output.client);mcuWsClient=connectedSocket.get();
+    wsReady=mcuSocketConnected=true;mcuSocketNamespaceReady=mcuStatusNamespaceReady=false;
+    officialNamespaces.reset();statusReconnectAtMs=0;mcuSocketTargetKey=studioConnectTarget;
+    lastMcuSocketConnectAtMs=millis();mcuSocketLiveness.connected(lastMcuSocketConnectAtMs);
+    nextMcuSocketReconnectAtMs=0;
   } else {
-    mcuWsClient = &mcuWsPlainClient;
+    if(output.client) {output.client->stop();output.client.reset();}
+    if(current) scheduleMcuSocketReconnect();
   }
-  // The TLS connection can succeed while the remote HTTP upgrade is delayed.
-  // Use the same remote read budget as discovery/login; keep the LAN budget.
-  const uint32_t socketConnectStarted = millis();
-  if (!mcuWsClient->connect(host.c_str(), port, scheme == F("https") ? 15000 : 5000)) {
-      char tlsDetail[96] = {};
-    const int tlsError = scheme == F("https") ? mcuWsSecureClient.lastError(tlsDetail, sizeof(tlsDetail)) : 0;
-    Serial.printf("Socket.IO connect failed host=%s port=%u tls=%d elapsed=%lu\n", host.c_str(), port,
-                  tlsError < 0 ? tlsError : 0, static_cast<unsigned long>(millis() - socketConnectStarted));
-    scheduleMcuSocketReconnect();
-    return;
-  }
-  // Configure socket I/O only after connect; an unconnected secure client may
-  // still expose fd 0 and make the SDK apply socket options to an invalid fd.
-  mcuWsClient->setTimeout(scheme == F("https") ? kMcuRemoteHttpTimeoutMs / 1000 : 5);
-  mcuWsClient->setNoDelay(true);
-
-  String socketPath = F("/socket.io/?EIO=4&transport=websocket");
-  if (officialStudioDirect()) socketPath+=String("&profile=")+officialUrlEncode(selectedProfile);
-  uint8_t nonce[16];esp_fill_random(nonce,sizeof(nonce));
-  char encoded[25]{};size_t encodedBytes=0;
-  if(mbedtls_base64_encode(reinterpret_cast<uint8_t*>(encoded),sizeof(encoded),&encodedBytes,nonce,sizeof(nonce))!=0) {
-    mcuWsClient->stop();scheduleMcuSocketReconnect();return;
-  }
-  String key(encoded);
-  String request;
-  request.reserve(host.length() + socketPath.length() + 260);
-  request += F("GET ");
-  request += socketPath;
-  request += F(" HTTP/1.1\r\nHost: ");
-  request += host;
-  request += F(":");
-  request += port;
-  request += F("\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: ");
-  request += key;
-  request += F("\r\nUser-Agent: Ekko Studio-CardputerADV\r\n\r\n");
-  mcuWsClient->print(request);
-
-  String statusLine = mcuWsClient->readStringUntil('\n');
-  statusLine.trim();
-  if (!statusLine.startsWith(F("HTTP/1.1 101")) && !statusLine.startsWith(F("HTTP/1.0 101"))) {
-      Serial.printf("Socket.IO websocket upgrade failed: %s\n", statusLine.c_str());
-    mcuWsClient->stop();
-    scheduleMcuSocketReconnect();
-    return;
-  }
-  uint32_t headerStartedAt = millis();
-  while (mcuWsClient->connected() && millis() - headerStartedAt < 3000) {
-    String line = mcuWsClient->readStringUntil('\n');
-    line.trim();
-    if (line.length() == 0) break;
-  }
-  wsReady = true;
-  resetOfficialSocketReader();
-  mcuSocketConnected = true;
-  mcuSocketNamespaceReady = false;mcuStatusNamespaceReady=false;officialNamespaces.reset();statusReconnectAtMs=0;
-  mcuSocketTargetKey = targetKey;
-  lastMcuSocketConnectAtMs = millis();
-  mcuSocketLiveness.connected(lastMcuSocketConnectAtMs);
-  nextMcuSocketReconnectAtMs = 0;
-  Serial.printf("Socket.IO client connecting host=%s port=%u profile=%s relay=%d\n",
-                host.c_str(), port, selectedProfile.c_str(), mcuSocketRelayUrl.length() > 0 ? 1 : 0);
-  mcuSocketLoop();
+  studioConnectDiagnostics=std::move(output); // Fixed diagnostics; no client or credentials retained.
 }
 
 // All runs use the official web-client protocol; no MCU chat extensions.
@@ -3975,13 +3898,20 @@ bool officialRequestHistory(const char* messageId,uint32_t byteOffset,const char
   }
   auto input=std::unique_ptr<official_history::Input>(new(std::nothrow)official_history::Input);
   if(!input) {setChatNotice("内存不足，未加载记录");return false;}
+  // Only a durable, locally owned /chat-run identity can use the official
+  // local-session 404 as proof of absence. Never infer ownership from a prefix
+  // or reinterpret a failed page after this session has confirmed history.
+  const bool localAbsenceAllowed=!officialSessionExists && officialHistoryTotal==0 &&
+      officialSessionStore.ready() && officialBinding==officialSessionStore.binding() &&
+      officialSession==String("m5-")+officialBinding+"-"+officialSessionStore.nonce();
   if(official_history::makeInput(*input,activeDeviceUrl.c_str(),mcuAuthToken.c_str(),selectedProfile.c_str(),
-      officialSession.c_str(),officialEpoch,page,byteOffset)!=official_history::Result::Ok) {
+      officialSession.c_str(),officialEpoch,page,byteOffset,localAbsenceAllowed)!=official_history::Result::Ok) {
     setChatNotice("记录连接信息不完整");return false;
   }
   if(officialHistoryJob.start(*input)!=official_history::StartResult::Started) {
     setChatNotice("记录任务暂不可用，请稍后重试");return false;
   }
+  historyReviewTicket=sendRecovery.reviewTicket();
   officialHistoryMessageId=messageId?messageId:"";officialHistoryRequestId=nextChatRequestId();
   officialHistoryRequestPage=page;officialHistoryRequestDirection=direction;
   officialHistoryRequestRevision=officialHistoryRevision;
@@ -4078,6 +4008,7 @@ bool officialApplyHistory(official_history::Output& output) {
     }
   }
   chatModel.endHistory(route,request.c_str(),snapshot->hasMore,page>0);
+  sendRecovery.observeHistory(officialEpoch,historyReviewTicket,page==0);historyReviewTicket=0;
   chatHistoryRequest=""; chatHistoryLoadedVersion=agentSelection.version;
   if(chatFocusMessage.length()) { chatBottomOffset=cardputerChatMessageScroll(chatModel,chatFocusMessage.c_str(),chatFocusAtEnd,chatNotice.length()!=0);chatFocusMessage=""; }
   if(chatPageFocus!=NativeChatBrowseFocus::Preserve) {
@@ -4102,9 +4033,7 @@ bool officialSendInput(const char* text,bool fromDraft) {
       chatHistoryLoadedVersion!=agentSelection.version) {
     setChatNotice("正在同步记录，输入已保留，请稍后发送");return false;
   }
-  if(fromDraft && chatSendUnknown && chatSentAgent==chatModel.agentId() && chatSentProfile==selectedProfile && chatModel.context() &&
-     chatSentBinding==chatModel.context()->binding && chatDraftMatchesSent(chatModel.draft())) {
-    setChatNotice("发送结果未知，请先刷新记录；未自动重发");return false;}
+  if(chatSendUnknown) {setChatNotice("发送结果未确认，请先 Fn+R 核对");return false;}
   resetListeningMonitor();
   JsonDocument body; const String request=nextChatRequestId();
   auto context=officialContext(); official_studio::Result result;
@@ -4141,10 +4070,22 @@ void tickOfficialStudio() {
   }
   official_selection::Output selection;
   const auto polled=officialSelectionJob.poll(selection);
-  if(!officialStudioDirect()||!mcuSocketNamespaceReady) return;
-  if(polled==official_selection::Poll::Ready && selection.epoch==officialEpoch && agentSelection.pending &&
-      pendingAgentProfile==selection.profile.data() &&
-      !std::strcmp(kNativeAgents[agentSelection.requested].id,selection.agentId.data())) {
+  const auto finishActivation=[](experience::Outcome outcome) {
+    const auto finished=selectionWorkerGeneration?selectionWorkerGeneration:activationGeneration;
+    const bool accepted=experienceController.dispatch(experience::Event::activationFinished(finished,outcome));
+    if(activationGeneration==finished)activationGeneration=0;
+    selectionWorkerGeneration=0;return accepted;
+  };
+  const auto& app=experienceController.snapshot();
+  const bool matching=polled==official_selection::Poll::Ready && activationGeneration &&
+      app.openIntent && app.activationGeneration==activationGeneration && mcuSocketNamespaceReady &&
+      selection.epoch==officialEpoch && agentSelection.pending && pendingAgentProfile==selection.profile.data() &&
+      !std::strcmp(kNativeAgents[agentSelection.requested].id,selection.agentId.data());
+  if(polled==official_selection::Poll::Ready && !matching) {
+    finishActivation(experience::Outcome::Cancelled);agentSelection.pending=false;
+  }
+  if(!mcuSocketNamespaceReady) return;
+  if(matching) {
     const size_t index=agentSelection.requested;
     const auto selectionNotice=official_selection_notice::describe(official_selection_notice::classify(selection));
     // Fixed reason and numeric enums only: no server text, account/Profile,
@@ -4154,18 +4095,29 @@ void tickOfficialStudio() {
         selection.httpStatus,official_selection_notice::nativeDiagnostic(selection),
         official_selection_notice::modelDiagnostic(selection));
     if(selection.result==official_selection::Result::Transient || selection.result==official_selection::Result::NoMemory) {
-      officialSelectionQueued=true;
+      officialSelectionQueued=false;agentSelection.pending=false;
+      finishActivation(experience::Outcome::RetryableFailure);
       if(officialSelectionRetries<5) ++officialSelectionRetries;
       const uint32_t backoff=std::min<uint32_t>(30000,1000U<<officialSelectionRetries);
       officialSelectionNotBeforeMs=millis()+std::max(backoff,selection.retryAfterMs);
       setChatNotice(selectionNotice.text);
     } else if(selection.result!=official_selection::Result::Ok) {
       agentSelection.pending=agentSelection.confirmed=false;agentSelectionError="standard_agent_unavailable";
+      finishActivation(selection.result==official_selection::Result::AuthInvalid?
+          experience::Outcome::RetryableFailure:experience::Outcome::PermanentFailure);
       if(selection.result==official_selection::Result::AuthInvalid) {
         setChatNotice(selectionNotice.text);queueMcuReauth(true,F("standard_selection_auth_invalid"));
       } else setChatNotice(selectionNotice.text);
     } else {
+      if(officialAccount.length() && officialAccount!=selection.accountId.data()) {
+        experienceController.dispatch(experience::Event::bindingChanged());
+        finishActivation(experience::Outcome::Cancelled);agentSelection.pending=agentSelection.confirmed=false;
+        officialAccount=selection.accountId.data();leaveConversationScope();
+        experienceBinding=activeDeviceKey+"|"+selectedProfile+"|"+officialAccount;
+        setChatNotice("账号已改变，请重新选择 Agent");return;
+      }
       officialAccount=selection.accountId.data();officialModel=selection.selection;officialMode=selection.mode;
+      experienceBinding=activeDeviceKey+"|"+selectedProfile+"|"+officialAccount;
       officialBinding=officialSessionIdentity().substring(3);
       // A previous explicit rotation may still own a durable-write candidate.
       // Resolve that transaction before changing bindings, without exposing or
@@ -4176,13 +4128,18 @@ void tickOfficialStudio() {
         // A failed durable write never enables a fresh session identity. Keep
         // its one pending candidate and retry without deleting another key.
         if(officialSessionStore.pending()) {
-          officialSelectionQueued=true;officialSelectionNotBeforeMs=millis()+5000;
+          officialSelectionQueued=false;agentSelection.pending=false;
+          finishActivation(experience::Outcome::RetryableFailure);officialSelectionNotBeforeMs=millis()+5000;
           setChatNotice("会话尚未保存，正在重试；原有记录已保留");
         } else {
           agentSelection.pending=agentSelection.confirmed=false;agentSelectionError="standard_session_storage_failed";
+          finishActivation(experience::Outcome::PermanentFailure);
           setChatNotice("会话存储不可用，未新建对话；原有记录已保留");
         }
         return;
+      }
+      if(!finishActivation(experience::Outcome::Succeeded)) {
+        agentSelection.pending=false;return;
       }
       officialSession=String("m5-")+officialBinding+"-"+officialSessionStore.nonce();
       officialRun="";officialLiveText.reset();officialHistoryTotal=0;
@@ -4206,24 +4163,27 @@ void tickOfficialStudio() {
       // has been confirmed would produce a misleading session-not-found error.
       officialHistoryQueued=true;
       oledDirty=true;
-      if(agentSelection.browse!=agentSelection.active) requestCardputerAgentSelection(agentSelection.browse);
+
     }
   }
-  if(officialSelectionQueued && !officialSelectionJob.busy() && !officialHistoryJob.busy() && !officialVoiceNetworkBusy() && agentSelection.pending &&
+  if(officialSelectionQueued && !studioAuthJob.busy() && !studioConnectJob.busy() && !officialSelectionJob.busy() && !officialHistoryJob.busy() && !officialVoiceNetworkBusy() && agentSelection.pending &&
       static_cast<int32_t>(millis()-officialSelectionNotBeforeMs)>=0) {
     resetListeningMonitor();
     auto input=std::unique_ptr<official_selection::Input>(new(std::nothrow)official_selection::Input);
     if(!input) {officialSelectionNotBeforeMs=millis()+5000;setChatNotice("内存暂不足，稍后自动重试");return;}
     const auto valid=official_selection::makeInput(*input,activeDeviceUrl.c_str(),mcuAuthToken.c_str(),
-        selectedProfile.c_str(),kNativeAgents[agentSelection.requested].id,officialEpoch);
+        selectedProfile.c_str(),kNativeAgents[agentSelection.requested].id,officialEpoch,
+        agentPreference(agentSelection.requested));
     const auto started=valid==official_selection::Result::Ok ? officialSelectionJob.start(*input) :
         official_selection::StartResult::Invalid;
     if(started==official_selection::StartResult::Started) {
+      selectionWorkerGeneration=activationGeneration;
       officialSelectionQueued=false;agentSelectionStartedMs=millis();
     } else if(started==official_selection::StartResult::NoMemory) {
       officialSelectionNotBeforeMs=millis()+5000;setChatNotice("内存暂不足，稍后自动重试");
     } else {
       officialSelectionQueued=false;agentSelection.pending=agentSelection.confirmed=false;
+      finishActivation(experience::Outcome::PermanentFailure);
       agentSelectionError="standard_binding_invalid";setChatNotice("后台连接信息不完整，已保留原有绑定");
     }
   }
@@ -4233,9 +4193,11 @@ void tickOfficialStudio() {
   if(officialResumeQueued && !officialResumePending && agentSelection.ready() && officialSessionExists) {
     resetListeningMonitor();
     officialResumeQueued=false;JsonDocument resume;resume["session_id"]=officialSession;
-    if(officialEmit("resume",resume)) {officialResumePending=true;officialResumeAtMs=millis();}
+    if(officialEmit("resume",resume)) {
+      resumeReviewTicket=sendRecovery.reviewTicket();officialResumePending=true;officialResumeAtMs=millis();
+    }
   }
-  if(officialHistoryQueued && officialChatContextActivated() && !officialHistoryJob.busy() && !officialSelectionJob.busy() && !officialVoiceNetworkBusy() &&
+  if(officialHistoryQueued && officialChatContextActivated() && !studioAuthJob.busy() && !studioConnectJob.busy() && !officialHistoryJob.busy() && !officialSelectionJob.busy() && !officialVoiceNetworkBusy() &&
       static_cast<int32_t>(millis()-officialHistoryNotBeforeMs)>=0) {
     if(officialRequestHistory(nullptr,0,nullptr,nullptr)) officialHistoryQueued=false;
   }
@@ -4251,7 +4213,7 @@ bool officialControlEvent(const String& event) {
     if(!agentSelection.ready() || !officialBinding.length()) return false;
     cancelOfficialVoice();
     if(officialSessionStore.rotate(officialBinding.c_str())!=official_sessions::Result::Ok) {
-      setChatNotice("新会话未能保存，仍保留当前对话；可再次双击重试");return false;
+      setChatNotice("新会话未能保存，仍保留当前对话；可稍后重试");return false;
     }
     if(chatRemoteRunActive || chatPendingSend.length()) {
       JsonDocument abort;abort["session_id"]=officialSession;officialEmit("abort",abort);
@@ -4281,6 +4243,7 @@ void officialApplyEvent(const official_incoming::Snapshot<0>& frame) {
   if(event=="resumed") {
     if(!frame.hasWorking) {setChatNotice("后台会话状态格式错误");return;}
     officialResumePending=false;
+    sendRecovery.observeResume(officialEpoch,resumeReviewTicket,frame.working);resumeReviewTicket=0;
     chatRemoteRunActive=frame.working;mcuInteractionActive=frame.working;
     officialHistorySkippingTools=false;
     if(!frame.working) {
@@ -4378,7 +4341,10 @@ void officialApplyEvent(const official_incoming::Snapshot<0>& frame) {
     officialHistorySkippingTools=false;
     officialExpectedMessageAtMs=millis();
     officialHistoryNotBeforeMs=millis()+400;
-    if(event=="run.failed") setChatNotice(chatFailureNotice(frame.error[0]?frame.error.data():"请检查 Studio 的模型与登录"));
+    if(event=="run.failed") {
+      const auto reason=official_run_failure::notice(frame.error[0]?frame.error.data():"请检查 Studio 的模型与登录");
+      Serial.printf("[official-run] failure=%s\n",reason.code);setChatNotice(reason.text);
+    }
     else setChatNotice("");
     chatRemoteRunActive=false;mcuInteractionActive=false;officialRun="";officialLiveId="";
     officialHistoryQueued=true;++chatUiRevision;oledDirty=true;
@@ -4387,21 +4353,29 @@ void officialApplyEvent(const official_incoming::Snapshot<0>& frame) {
 
 void cancelOfficialVoice(const char* notice) {
   const bool owned=officialVoiceNetworkBusy();
+  const bool cancelledTake=officialRecording.active;
   resetListeningMonitor();
   officialSpeechPlan.cancel();officialSpeechNeedsFreshTotal=false;
   if(officialHistoryForSpeech) officialHistoryJob.cancel();
   officialVoiceCancelled=true;
   officialRecordingRequested=false;
   officialVoiceJob.cancel();
-  if(officialRecording.active) {
+  if(cancelledTake) {
+    if(officialRecording.ready && !officialRecording.stopping) {
+      officialRecording.stoppedAt=millis();officialRecording.stopping=true;
+    }
+    officialRecording.stopReason=RecordingStopReason::Cancelled;
     officialRecording.active=false;officialVoiceCleanupPending=true;
-    officialRecordingStore.discard();
   }
   officialVoiceDrainPending=officialVoiceOutputPlaying=false;
   officialVoiceRate=officialVoiceTailFrames=officialVoiceDrainAtMs=officialVoiceTailAtMs=0;
   if(owned) {
     cardputerAudioClear();M5Cardputer.Mic.end();audioBusy=false;resetListeningMonitor();
     if(!chatRemoteRunActive) {mcuInteractionActive=false;mcuInteractionStatus="aborted";mcuInteractionUpdatedAtMs=millis();}
+  }
+  if(cancelledTake) {
+    latchOfficialRecording(RecordingOutcome::Cancelled);
+    officialRecordingStore.discard();
   }
   if(notice && *notice) setChatNotice(notice);
 }
@@ -4415,24 +4389,36 @@ std::unique_ptr<official_voice_job::Context> officialVoiceContext() {
 
 void finishOfficialRecording(bool success,const char* failure=nullptr) {
   if(!officialRecording.active) return;
-  officialRecording.active=false;cardputerAudioClear();M5Cardputer.Mic.end();resetListeningMonitor();audioBusy=false;
+  if(officialRecording.ready && !officialRecording.stopping) {
+    officialRecording.stoppedAt=millis();officialRecording.stopping=true;
+  }
+  if(officialRecording.stopReason==RecordingStopReason::None)
+    officialRecording.stopReason=success?RecordingStopReason::Released:RecordingStopReason::CaptureFailed;
+  officialRecording.active=false;cardputerSuppressGestureUntilReleased();cardputerAudioClear();M5Cardputer.Mic.end();resetListeningMonitor();audioBusy=false;
+  // Recording has ended even when admission or STT startup fails below. Do
+  // not leave the header at "listening" while the error notice is displayed.
+  mcuInteractionActive=false;mcuInteractionStatus=success?"failed":"aborted";mcuInteractionUpdatedAtMs=millis();
   const auto capture=cardputerCaptureStats();
   if(success && (capture.failed || capture.storageRetained)) {
-    success=false;failure="录音缓冲溢出或采集失败，本次未发送";
+    success=false;officialRecording.stopReason=RecordingStopReason::CaptureFailed;failure="录音缓冲溢出或采集失败，本次未发送";
   }
   sampleOfficialRecordingMemory();
-  officialRecordingLastPcmBytes=officialRecordingStore.recordedBytes();
-  officialRecordingLastEncodedBytes=officialRecordingStore.encodedBytes();
   voiceRecordPeak=officialRecording.peak;
   voiceRecordRms=officialRecording.frames?uint32_t(std::sqrt(double(officialRecording.squares)/officialRecording.frames)):0;
   voiceRecordActiveSamples=officialRecording.activeSamples;
   voiceRecordHeardSpeech=officialRecording.heardSpeech || (voiceRecordRms>=kVoiceVadRmsStart &&
       voiceRecordPeak>=kVoiceVadPeakStart && voiceRecordActiveSamples>=kVoiceVadMinActiveSamples);
   if(!success || !voiceRecordHeardSpeech) {
+    if(success) {
+      officialRecording.stopReason=RecordingStopReason::NoSpeech;
+      failure="未检测到清晰声音，本次未发送";
+    }
+    latchOfficialRecording(officialRecording.stopReason==RecordingStopReason::Cancelled?RecordingOutcome::Cancelled:RecordingOutcome::Failed);
     officialRecordingStore.discard();mcuInteractionActive=false;
-    setChatNotice(failure?failure:"没有检测到清晰声音，请重试");return;
+    setChatNotice(failure?failure:"录音失败，本次未发送");return;
   }
   if(officialRecordingStore.finish()!=ram_recording::Error::Ok) {
+    latchOfficialRecording(RecordingOutcome::Failed);
     officialRecordingStore.discard();mcuInteractionActive=false;setChatNotice("录音保存失败，本次未发送");return;
   }
   auto context=officialVoiceContext();ram_recording::Result error;
@@ -4442,26 +4428,33 @@ void finishOfficialRecording(bool success,const char* failure=nullptr) {
   if(!context || !reader || error!=ram_recording::Error::Ok) {
     officialRecordingAdmissionError=3;
     officialVoiceCleanupPending=true;mcuInteractionActive=false;
-    setChatNotice("语音识别内存不足，本次未发送");return;
+    latchOfficialRecording(RecordingOutcome::Failed);setChatNotice("语音识别内存不足，本次未发送");return;
   }
   // Capture has been joined and freed. Account for only one worker stack,
   // its actual SharedState and LAN HTTP headroom while RAM audio stays alive.
   officialRecordingWorkerFree=heap_caps_get_free_size(kOfficialVoiceHeapCaps);officialRecordingWorkerLargest=heap_caps_get_largest_free_block(kOfficialVoiceHeapCaps);
-  const size_t workerBytes=official_voice_job::kTaskStackBytes+official_voice_job::Job::fixedJobHeapBytes();
+  const size_t stackBytes=official_voice_job::taskStackBytes(official_voice_job::Type::Stt,*context);
+  const size_t workerBytes=stackBytes+official_voice_job::Job::fixedJobHeapBytes();
   sampleOfficialRecordingMemory();
-  if(officialRecordingWorkerFree<workerBytes+12*1024 || officialRecordingWorkerLargest<std::max<size_t>(official_voice_job::kTaskStackBytes,official_voice_job::Job::fixedJobHeapBytes())+512) {
+  if(officialRecordingWorkerFree<workerBytes+12*1024 || officialRecordingWorkerLargest<std::max<size_t>(stackBytes,official_voice_job::Job::fixedJobHeapBytes())+512) {
     officialRecordingAdmissionError=4;
     officialVoiceCleanupPending=true;mcuInteractionActive=false;
-    setChatNotice("语音识别内存不足，本次未发送");return;
+    latchOfficialRecording(RecordingOutcome::Failed);setChatNotice("语音识别内存不足，本次未发送");return;
   }
   const auto started=officialVoiceJob.startStt(*context,std::move(reader),bytes,kVoiceInputSampleRate,1,nonce);
+  officialRecordingStartResult=static_cast<uint8_t>(started);
+  officialRecordingStartStage=static_cast<uint8_t>(officialVoiceJob.lastStartStage());
+  officialRecordingStartDiagnostics=officialVoiceJob.lastStartDiagnostics();
   sampleOfficialRecordingMemory();
   if(started!=official_voice_job::StartResult::Started) {
     officialRecordingAdmissionError=5;
     officialVoiceCleanupPending=true;mcuInteractionActive=false;
+    latchOfficialRecording(RecordingOutcome::Failed);
     setChatNotice(started==official_voice_job::StartResult::NoMemory?
         "语音识别内存不足，本次未发送":"识别任务暂不可用，本次语音未发送");return;
   }
+  officialSttTakeId=officialRecording.takeId;
+  latchOfficialRecording(RecordingOutcome::Complete,true);
   officialVoiceEpoch=officialEpoch;officialVoiceCancelled=false;
   officialVoiceCleanupPending=true;audioBusy=true;
   mcuInteractionActive=true;mcuInteractionStatus="transcribing";mcuInteractionUpdatedAtMs=millis();
@@ -4470,7 +4463,9 @@ void finishOfficialRecording(bool success,const char* failure=nullptr) {
 
 void startOfficialRecording() {
   if(officialRecording.active) return;
-  if(!conversationView.conversation() || !officialStudioDirect() || !officialChatContextActivated() ||
+  if(chatSendUnknown) {setChatNotice("发送结果未确认，请先 Fn+R 核对");return;}
+  if(studioAuthJob.busy() || studioConnectJob.busy()) {setChatNotice("正在恢复连接，请稍后说话");return;}
+  if(!chatPageOpen() || !officialStudioDirect() || !officialChatContextActivated() ||
       !chatModel.ready() || !mcuSocketNamespaceReady || !wifiReady || WiFi.status()!=WL_CONNECTED) {
     setChatNotice("当前会话尚未就绪，请连接后台后再说话");return;
   }
@@ -4492,9 +4487,13 @@ void startOfficialRecording() {
   // Stop idle speaker/Mic tasks and join all DMA ownership before reserving
   // the compressed take. RAM recording never mounts or writes a filesystem.
   cardputerTickKeyClick(false);cardputerAudioClear();M5Cardputer.Mic.end();resetListeningMonitor();
+  officialRecording=OfficialRecordingState{};officialRecording.active=true;
+  if(!++recordingTakeSequence)++recordingTakeSequence;
+  officialRecording.takeId=recordingTakeSequence;
   officialRecordingHeapStart=officialRecordingHeapMinimum=officialRecordingLargestMinimum=0;
-  officialRecordingLastPcmBytes=officialRecordingLastEncodedBytes=0;
   officialRecordingWorkerFree=officialRecordingWorkerLargest=0;officialRecordingAdmissionError=0;
+  officialRecordingStartResult=255;officialRecordingStartStage=0;
+  officialRecordingStartDiagnostics=official_voice_job::StartDiagnostics{};
   sampleOfficialRecordingMemory();
   const auto storage=officialRecordingStore.prepare();
   sampleOfficialRecordingMemory();
@@ -4504,30 +4503,32 @@ void startOfficialRecording() {
   if(storage!=ram_recording::Error::Ok ||
       officialRecordingStore.capacityBytes()<kVoiceInputSampleRate*2*kVoiceRecordMinMs/1000) {
     officialRecordingAdmissionError=1;
-    setChatNotice("录音内存不足，文字聊天仍可使用");return;
+    officialRecording.stopReason=RecordingStopReason::StartFailed;
+    finishOfficialRecording(false,"录音内存不足，文字聊天仍可使用");return;
   }
   const auto beginResult=officialRecordingStore.begin();
   officialRecordingBeginResult=beginResult;
   if(beginResult!=ram_recording::Error::Ok) {
     Serial.printf("Official recording begin error=%s\n",ram_recording::errorName(beginResult));
-    officialRecordingStore.discard();
-    setChatNotice("录音存储不可用，本次未发送");return;
+    officialRecording.stopReason=RecordingStopReason::StartFailed;
+    finishOfficialRecording(false,"录音存储不可用，本次未发送");return;
   }
+  officialRecording.storeOwned=true;
   // The advertised limit follows the actual compressed RAM allocation.
-  const uint32_t limitMs=5000;
+  const uint32_t limitMs=kVoiceRecordLimitMs;
   const uint32_t frameLimit=std::min<uint32_t>(kVoiceInputSampleRate*limitMs/1000,
       officialRecordingStore.capacityBytes()/sizeof(int16_t));
   if(frameLimit<kVoiceInputSampleRate*kVoiceRecordMinMs/1000) {
-    officialRecordingStore.discard();
-    setChatNotice("录音空间不足以保留本次语音，本次未发送");return;
+    officialRecording.stopReason=RecordingStopReason::StartFailed;
+    finishOfficialRecording(false,"录音空间不足以保留本次语音，本次未发送");return;
   }
-  officialRecording=OfficialRecordingState{};officialRecording.active=true;officialRecording.automatic=false;
   officialRecording.frameLimit=frameLimit;officialRecording.channel=VoiceInputChannel::Undecided;
   officialRecording.epoch=officialEpoch;officialRecording.keys=cardputerChatKeyCount();
-  officialRecording.navigation=cardputerNavigationCount();officialRecording.startedAt=officialRecording.lastSpeechAt=millis();
+  officialRecording.navigation=cardputerNavigationCount();
   cardputerTickKeyClick(false);
   cardputerAudioClear();
   if(!setI2sSampleRate(kVoiceInputSampleRate)) {
+    officialRecording.stopReason=RecordingStopReason::StartFailed;
     finishOfficialRecording(false,"麦克风采样率设置失败，本次未发送");return;
   }
   // A failed allocation must not let the codec or network starve silently.
@@ -4535,47 +4536,66 @@ void startOfficialRecording() {
   if(heap_caps_get_free_size(kOfficialVoiceHeapCaps)<54*1024 || heap_caps_get_largest_free_block(kOfficialVoiceHeapCaps)<sizeof(mic_capture::Queue) ||
       heap_caps_get_free_size(MALLOC_CAP_DMA)<8*1024 || heap_caps_get_largest_free_block(MALLOC_CAP_DMA)<512) {
     officialRecordingAdmissionError=2;
+    officialRecording.stopReason=RecordingStopReason::StartFailed;
     finishOfficialRecording(false,"连续录音内存不足，文字聊天仍可使用");return;
   }
   audioBusy=true;mcuInteractionActive=true;mcuInteractionStatus="listening";mcuInteractionUpdatedAtMs=millis();
   if(!cardputerCaptureBegin(kVoiceInputSampleRate) || cardputerCaptureStats().failed) {
+    officialRecording.stopReason=RecordingStopReason::StartFailed;
     finishOfficialRecording(false,"连续录音缓冲不可用，本次未发送");return;
   }
+  officialRecording.captureStarted=officialRecording.ready=true;
+  // The five-second wall clock starts only after the SDK accepted the first
+  // request on a running capture port. Codec/setup time is not recorded time.
+  officialRecording.startedAt=officialRecording.lastSpeechAt=millis();
   sampleOfficialRecordingMemory();
   setChatNotice(String("录音可用约 ")+String(double(officialRecording.frameLimit)/kVoiceInputSampleRate,1)+" 秒，松开发送");oledDirty=true;
+}
+
+void stopOfficialRecordingCapture(RecordingStopReason reason,uint32_t now) {
+  if(officialRecording.stopping)return;
+  officialRecording.stopReason=reason;officialRecording.stoppedAt=now;
+  officialRecording.stopping=true;
+  cardputerCaptureStop(); // Join producer; keep only completed Ready blocks.
+  officialRecording.drainAt=millis();
 }
 
 void tickOfficialRecording() {
   if(!officialRecording.active) return;
   const uint32_t now=millis();
-  if(officialRecording.epoch!=officialEpoch || !conversationView.conversation() || !officialChatContextActivated() ||
+  if(officialRecording.epoch!=officialEpoch || !chatPageOpen() || !officialChatContextActivated() ||
       cardputerChatKeyCount()!=officialRecording.keys || cardputerNavigationCount()!=officialRecording.navigation ||
       WiFi.status()!=WL_CONNECTED) {
+    officialRecording.stopReason=RecordingStopReason::Cancelled;
     finishOfficialRecording(false,"录音已取消，本次未发送");return;
-  }
-  if(officialRecording.frames>=officialRecording.frameLimit) {
-    finishOfficialRecording(true,"已达录音时长上限，发送已录内容");return;
-  }
-  if(now-officialRecording.startedAt>=kVoiceRecordHardTimeoutMs) {
-    finishOfficialRecording(false,"录音超时，本次未发送");return;
-  }
-  if(!officialRecording.automatic && now-officialRecording.startedAt>=kVoiceRecordMinMs) {
-    if(!cardputerTalkPressed()) {
-      if(!officialRecording.releaseAt) officialRecording.releaseAt=now;
-      if(now-officialRecording.releaseAt>=kVoiceStreamReleaseDebounceMs && !officialRecording.stopping) {
-        // Stop requeue and join, then write every already completed block.
-        // An unfinished SDK request is discarded, never labelled complete.
-        cardputerCaptureStop();officialRecording.stopping=true;
-      }
-    } else officialRecording.releaseAt=0;
   }
   const auto captureBeforeRead=cardputerCaptureStats();
   if(captureBeforeRead.failed || (!officialRecording.stopping && !captureBeforeRead.active)) {
+    officialRecording.stopReason=RecordingStopReason::CaptureFailed;
     finishOfficialRecording(false,"录音缓冲溢出或采集失败，本次未发送");return;
+  }
+  if(!officialRecording.stopping && officialRecording.frames>=officialRecording.frameLimit)
+    stopOfficialRecordingCapture(RecordingStopReason::SampleLimit,now);
+  if(!officialRecording.stopping && uint32_t(now-officialRecording.startedAt)>=kVoiceRecordLimitMs)
+    stopOfficialRecordingCapture(RecordingStopReason::WallLimit,now);
+  if(!officialRecording.stopping && uint32_t(now-officialRecording.startedAt)>=kVoiceRecordMinMs) {
+    if(!cardputerTalkPressed()) {
+      if(!officialRecording.releaseTracked) {officialRecording.releaseAt=now;officialRecording.releaseTracked=true;}
+      if(now-officialRecording.releaseAt>=kVoiceStreamReleaseDebounceMs && !officialRecording.stopping) {
+        // Stop requeue and join, then write every already completed block.
+        // An unfinished SDK request is discarded, never labelled complete.
+        stopOfficialRecordingCapture(RecordingStopReason::Released,now);
+      }
+    } else officialRecording.releaseTracked=false;
+  }
+  if(officialRecording.stopping && uint32_t(millis()-officialRecording.drainAt)>=kVoiceRecordDrainTimeoutMs) {
+    officialRecording.stopReason=RecordingStopReason::DrainTimeout;
+    finishOfficialRecording(false,"录音收尾超时，本次未发送");return;
   }
   auto captured=cardputerCaptureTake();
   if(!captured) {
-    if(officialRecording.stopping) finishOfficialRecording(true);
+    if(officialRecording.stopping)finishOfficialRecording(true,
+        officialRecording.stopReason==RecordingStopReason::Released?nullptr:"已达录音时长上限，发送已录内容");
     return;
   }
   const auto* stereo=captured.data();const size_t count=captured.samples();
@@ -4604,9 +4624,9 @@ void tickOfficialRecording() {
     officialRecording.heardSpeech=true;officialRecording.lastSpeechAt=now;
   }
   const auto capture=cardputerCaptureStats();
-  if(capture.failed) {finishOfficialRecording(false,"录音缓冲溢出或采集失败，本次未发送");return;}
-  if(officialRecording.automatic && officialRecording.heardSpeech && !capture.queue.readyBlocks &&
-      now-officialRecording.lastSpeechAt>=kListeningSilenceStopMs) finishOfficialRecording(true);
+  if(capture.failed) {officialRecording.stopReason=RecordingStopReason::CaptureFailed;finishOfficialRecording(false,"录音缓冲溢出或采集失败，本次未发送");return;}
+  if(!officialRecording.stopping && officialRecording.frames>=officialRecording.frameLimit)
+    stopOfficialRecordingCapture(RecordingStopReason::SampleLimit,millis());
   mcuInteractionUpdatedAtMs=now;
 }
 
@@ -4625,7 +4645,7 @@ void applyOfficialSpeechHistory(official_history::Output& output) {
   // A cancelled or newly armed plan may share the same session/epoch. Even a
   // late HTTP failure from the old page must not cancel this new request.
   if(officialSpeechPlan.phase()!=official_speech::Phase::AwaitingPage) return;
-  if(!officialStudioDirect() || !conversationView.conversation() || !mcuSocketNamespaceReady ||
+  if(!officialStudioDirect() || !chatPageOpen() || !mcuSocketNamespaceReady ||
       output.epoch!=officialEpoch || officialSession!=output.session.data() || selectedProfile!=output.profile.data()) return;
   if(output.result!=official_history::Result::Ok || !output.snapshot) {
     officialSpeechPlan.cancel();officialSpeechNeedsFreshTotal=false;
@@ -4654,7 +4674,7 @@ void finishOfficialPlayback(bool success,const char* failure=nullptr) {
 }
 
 void tickOfficialVoice() {
-  const bool current=officialStudioDirect() && conversationView.conversation() && officialChatContextActivated() &&
+  const bool current=officialStudioDirect() && chatPageOpen() && officialChatContextActivated() &&
       mcuSocketNamespaceReady && wifiReady && WiFi.status()==WL_CONNECTED;
   if(!current || (officialVoiceJob.busy() && officialVoiceEpoch!=officialEpoch)) cancelOfficialVoice();
   tickOfficialRecording();
@@ -4688,6 +4708,7 @@ void tickOfficialVoice() {
   // Output lives in fixed main-owned storage. pollDone releases the worker,
   // Reader and JWT only after the worker and both PCM leases have finished.
   if(officialVoiceJob.pollDone(officialVoiceCompletion)==official_voice_job::Poll::Ready) {
+    ++officialVoiceCompletions;
     const auto& out=officialVoiceCompletion;
     Serial.printf("Official voice type=%u error=%u http=%d samples=%llu rate=%lu stack_free=%lu heap_min=%lu largest_min=%lu boot_heap_min=%lu\n",
         unsigned(out.type),unsigned(out.result.error),out.result.httpStatus,
@@ -4697,6 +4718,7 @@ void tickOfficialVoice() {
 
     const bool valid=current && !officialVoiceCancelled && out.epoch==officialEpoch &&
         officialSession==out.session.data() && selectedProfile==out.profile.data();
+    latchOfficialSttMetrics(out,valid);
     if(!valid) {
       if(officialVoiceOutputPlaying) cardputerAudioClear();
       officialVoiceOutputPlaying=officialVoiceDrainPending=false;audioBusy=false;
@@ -4931,7 +4953,7 @@ void saveWifi() {
 
   // A submitted replacement network takes precedence even if its connection
   // fails. Never let an old automatic-AP retry take this form away afterward.
-  savedNetworkRetry.cancel();
+  savedNetworkRetry.cancel();savedWifiJoin.cancel();clearJoiningCredentials();
   if (connectWifiCredentials(ssid, pass, WIFI_AP_STA)) {
     rememberWifiCredential(ssid, pass);
     sharedWifiSaveFailed = !publishFactoryWifi(ssid, pass);
@@ -4979,42 +5001,42 @@ void forgetWifiHistory() {
   startSetupAp(true, "user_forget_all");
 }
 
-bool connectSavedWifi() {
-  scanWifiList();
+void beginSavedWifiConnection() {
+  if(savedWifiJoin.active()) return;
+  closeMcuSocketTransport(F("Wi-Fi recovery"));cancelMcuReauth();
+  clearJoiningCredentials();loadWifiCredentials(joiningSsids,joiningPasswords,joiningCount);
+  wifiReady=false;WiFi.persistent(false);WiFi.mode(setupApMode?WIFI_AP_STA:WIFI_STA);WiFi.setSleep(false);
+  savedWifiJoin.begin(joiningCount,millis());
+}
 
-  String ssids[kMaxWifiCandidates];
-  String passes[kMaxWifiCandidates];
-  int count = 0;
-  loadWifiCredentials(ssids, passes, count);
-  if (count == 0) {
-    Serial.println(F("No saved WiFi credentials, entering setup AP"));
-    esp_rom_printf("No saved WiFi credentials, entering setup AP\n");
-    return false;
+void tickSavedWifiConnection() {
+  if(!savedWifiJoin.active()) return;
+  const auto index=savedWifiJoin.index();
+  const bool connected=WiFi.status()==WL_CONNECTED && index<size_t(joiningCount) && WiFi.SSID()==joiningSsids[index];
+  const auto result=savedWifiJoin.poll(millis(),connected);
+  if(result==native_wifi::SavedWifiJoin::Result::Attempt) {
+    const auto next=savedWifiJoin.index();
+    WiFi.disconnect(false,false);WiFi.begin(joiningSsids[next].c_str(),joiningPasswords[next].c_str());
+    setOledStatus(OledMode::Think,F("WIFI"),F("CONNECT"),25);return;
   }
-
-  bool matched = false;
-  for (int i = 0; i < count; ++i) {
-    if (!scannedNetworkHasSsid(ssids[i])) continue;
-    matched = true;
-    Serial.printf("Saved WiFi found in scan ssid=%s\n", ssids[i].c_str());
-    esp_rom_printf("Saved WiFi found in scan ssid=%s\n", ssids[i].c_str());
-    if (connectWifiCredentials(ssids[i], passes[i], WIFI_STA)) {
-      SharedWifiConfig::Credentials factory;
-      const bool fromFactory = readFactoryWifi(factory) && ssids[i] == factory.ssid && passes[i] == factory.password;
-      connectedWifiSource = fromFactory ? factoryWifiSource : "ekko_history";
-      rememberWifiCredential(ssids[i], passes[i]);
-      return true;
-    }
+  if(result==native_wifi::SavedWifiJoin::Result::Connected) {
+    wifiReady=true;setupApMode=false;savedNetworkRetry.connected();wifiDisconnectedSinceMs=0;
+    WiFi.softAPdisconnect(true);WiFi.mode(WIFI_STA);
+    SharedWifiConfig::Credentials factory;
+    const bool fromFactory=readFactoryWifi(factory) && joiningSsids[index]==factory.ssid && joiningPasswords[index]==factory.password;
+    connectedWifiSource=fromFactory?factoryWifiSource:"ekko_history";
+    rememberWifiCredential(joiningSsids[index],joiningPasswords[index]);clearJoiningCredentials();
+    showLanIpOnOled();autoLoginSavedDevice();connectMcuSocketClient();return;
   }
-
-  if (!matched) {
-    Serial.println(F("No saved WiFi SSID found in scan, entering setup AP"));
-    esp_rom_printf("No saved WiFi SSID found in scan, entering setup AP\n");
+  if(result==native_wifi::SavedWifiJoin::Result::Exhausted) {
+    clearJoiningCredentials();savedNetworkRetry.failed(millis());
+    startSetupAp(false,"wifi_reconnect_failed");
   }
-  return false;
 }
 
 void startSetupAp(bool refreshScan, const char *reason) {
+  savedWifiJoin.cancel();clearJoiningCredentials();
+  disconnectMcuSocketClient();cancelMcuReauth();
   String ssids[kMaxWifiCandidates], passes[kMaxWifiCandidates];
   int savedCount = 0;
   loadWifiCredentials(ssids, passes, savedCount);
@@ -5103,6 +5125,7 @@ void handleHealth() {
   json += F("},\"connection\":{\"transport\":\"lan-standard\",\"namespace_ready\":");
   json += mcuSocketNamespaceReady?F("true"):F("false");
   json += F(",\"management_online\":");json+=mcuStatusNamespaceReady?F("true"):F("false");
+  json += F(",\"binding_identity_changed\":");json+=mcuReauthPolicy.bindingChanged()?F("true"):F("false");
   String healthScheme,healthHost,healthPath;uint16_t healthPort=0;
   if(!parseAudioUrl(activeMcuSocketUrl(),&healthScheme,&healthHost,&healthPort,&healthPath)) healthPort=0;
   bool bindingPersisted=false;Preferences binding;
@@ -5118,6 +5141,24 @@ void handleHealth() {
   }
   json += F(",\"http_port\":");json+=healthPort;
   json += F(",\"saved_binding_matches\":");json+=bindingPersisted?F("true"):F("false");json+=F("}");
+  const auto& application=experienceController.snapshot();
+  json+=F(",\"application\":{\"revision\":10,\"connection\":");json+=unsigned(application.connection);
+  json+=F(",\"page\":");json+=unsigned(application.page);
+  json+=F(",\"activation\":");json+=unsigned(application.activation);
+  json+=F(",\"turn\":");json+=unsigned(application.turnPhase);
+  json+=F(",\"desired_mode\":");json+=unsigned(agentPreference(application.desiredAgent));
+  json+=F(",\"active_mode\":");json+=unsigned(officialMode);
+  json+=F(",\"review_phase\":");json+=unsigned(sendRecovery.phase());
+  json+=F(",\"wifi_joining\":");json+=savedWifiJoin.active()?F("true"):F("false");
+  json+=F(",\"loop_longest_gap_ms\":");json+=loopLongestGapMs;
+  json+=F(",\"connect_busy\":");json+=studioConnectJob.busy()?F("true"):F("false");
+  json+=F(",\"connect_error\":");json+=unsigned(studioConnectDiagnostics.error);
+  json+=F(",\"connect_stack_free\":");json+=studioConnectDiagnostics.workerStackFreeBytes;
+  json+=F(",\"auth_busy\":");json+=studioAuthJob.busy()?F("true"):F("false");
+  json+=F(",\"auth_error\":");json+=studioAuthLastError;
+  json+=F(",\"auth_stage\":");json+=studioAuthLastStage;
+  json+=F(",\"auth_stack_free\":");json+=studioAuthStackFree;
+  json+=F(",\"auth_elapsed_ms\":");json+=studioAuthElapsedMs;json+=F("}");
   const FactoryFirmwareState factory = cardputerFactoryFirmwareState();
   json += F(",\"dual_boot\":{\"factory_header_found\":");
   json += factory.header_found ? F("true") : F("false");
@@ -5148,8 +5189,8 @@ void handleHealth() {
   json += F(",\"dropped\":"); json += navigation.dropped;
   json += F("}");
   json += F(",\"ui\":{\"page\":\"");
-  json += conversationView.conversation() ? F("conversation") : F("agents");
-  json += F("\",\"open_pending\":"); json += conversationView.waiting() ? F("true") : F("false");
+  json += chatPageOpen() ? F("conversation") : F("agents");
+  json += F("\",\"open_pending\":"); json += experienceController.snapshot().openIntent ? F("true") : F("false");
   json += F("}");
   json += F(",\"chat\":{\"protocol\":"); json += chatProtocolReady ? 1 : 0;
   json += F(",\"ready\":"); json += chatModel.ready() ? F("true") : F("false");
@@ -5278,12 +5319,23 @@ void handleHealth() {
   json += F("}");
   const auto& voice=officialVoiceCompletion;
   json += F(",\"official_voice\":{\"error\":");json+=unsigned(voice.result.error);
+  json += F(",\"type\":");json+=unsigned(voice.type);
+  json += F(",\"completions\":");json+=officialVoiceCompletions;
   json += F(",\"http\":");json+=voice.result.httpStatus;
   json += F(",\"metrics_available\":");json+=voice.resourcesAvailable?F("true"):F("false");
   json += F(",\"stack_min_free_bytes\":");json+=voice.workerStackFreeBytes;
   json += F(",\"heap_min_observed_bytes\":");json+=voice.internalHeapMinObservedBytes;
   json += F(",\"largest_min_observed_bytes\":");json+=voice.internalLargestBlockMinObservedBytes;
   json += F(",\"boot_heap_min_bytes\":");json+=voice.systemHeapLowWaterBytes;json+=F("}");
+  json += F(",\"stt_last\":{\"present\":");json+=lastSttMetrics.present?F("true"):F("false");
+  json += F(",\"take_id\":");json+=lastSttMetrics.takeId;
+  json += F(",\"metrics_available\":");json+=lastSttMetrics.available?F("true"):F("false");
+  json += F(",\"error\":");json+=lastSttMetrics.error;
+  json += F(",\"http\":");json+=lastSttMetrics.http;
+  json += F(",\"stack_min_free_bytes\":");json+=lastSttMetrics.stackFree;
+  json += F(",\"heap_min_observed_bytes\":");json+=lastSttMetrics.heapMin;
+  json += F(",\"largest_min_observed_bytes\":");json+=lastSttMetrics.largestMin;
+  json += F(",\"boot_heap_min_bytes\":");json+=lastSttMetrics.bootHeapMin;json+='}';
   json += F(",\"recording_store\":{\"kind\":\"ram_ima4\",\"sd_required\":false,\"limit_ms\":5000,\"prepare_error\":");json+=unsigned(officialRecordingPrepareResult);
   json += F(",\"begin_error\":");json+=unsigned(officialRecordingBeginResult);
   json += F(",\"result\":");json+=unsigned(officialRecordingStore.result());
@@ -5294,14 +5346,34 @@ void handleHealth() {
   json += F(",\"encoded_bytes\":");json+=officialRecordingStore.encodedBytes();
   json += F(",\"last_pcm_bytes\":");json+=officialRecordingLastPcmBytes;
   json += F(",\"last_encoded_bytes\":");json+=officialRecordingLastEncodedBytes;
+  json += F(",\"active_take_id\":");json+=officialRecording.active?officialRecording.takeId:0;
+  json += F(",\"active_ready\":");json+=officialRecording.active&&officialRecording.ready?F("true"):F("false");
+  json += F(",\"active_wall_ms\":");json+=officialRecording.active?officialRecordingWallMs():0;
+  json += F(",\"last_take\":{\"take_id\":");json+=lastRecordingTake.takeId;
+  json += F(",\"outcome\":");json+=static_cast<unsigned>(lastRecordingTake.outcome);
+  json += F(",\"stop_reason\":\"");json+=recordingStopName(lastRecordingTake.reason);json+='"';
+  json += F(",\"wall_ms\":");json+=lastRecordingTake.wallMs;
+  json += F(",\"frames\":");json+=lastRecordingTake.frames;
+  json += F(",\"pcm_bytes\":");json+=lastRecordingTake.pcmBytes;
+  json += F(",\"encoded_bytes\":");json+=lastRecordingTake.encodedBytes;
+  json += F(",\"stt_started\":");json+=lastRecordingTake.sttStarted?F("true"):F("false");json+='}';
   json += F(",\"heap_start_bytes\":");json+=officialRecordingHeapStart;
   json += F(",\"heap_min_observed_bytes\":");json+=officialRecordingHeapMinimum;
   json += F(",\"largest_min_observed_bytes\":");json+=officialRecordingLargestMinimum;
   json += F(",\"worker_free_before_bytes\":");json+=officialRecordingWorkerFree;
   json += F(",\"worker_largest_before_bytes\":");json+=officialRecordingWorkerLargest;
-  json += F(",\"admission_error\":");json+=officialRecordingAdmissionError;json+='}';
-  const auto capture=cardputerCaptureStats();
+  json += F(",\"admission_error\":");json+=officialRecordingAdmissionError;
+  json += F(",\"start_result\":");json+=officialRecordingStartResult;
+  json += F(",\"start_stage\":");json+=officialRecordingStartStage;
+  json += F(",\"task_stack_bytes\":");json+=officialRecordingStartDiagnostics.taskStackBytes;
+  json += F(",\"start_metrics_available\":");json+=officialRecordingStartDiagnostics.resourcesAvailable?F("true"):F("false");
+  json += F(",\"before_state_free_bytes\":");json+=officialRecordingStartDiagnostics.beforeStateFreeBytes;
+  json += F(",\"before_state_largest_bytes\":");json+=officialRecordingStartDiagnostics.beforeStateLargestBlockBytes;
+  json += F(",\"before_task_free_bytes\":");json+=officialRecordingStartDiagnostics.beforeTaskFreeBytes;
+  json += F(",\"before_task_largest_bytes\":");json+=officialRecordingStartDiagnostics.beforeTaskLargestBlockBytes;json+='}';
+  const auto capture=recordingCaptureForHealth();
   json += F(",\"capture\":{\"active\":");json += capture.active?F("true"):F("false");
+  json += F(",\"take_id\":");json+=officialRecording.active&&officialRecording.captureStarted?officialRecording.takeId:lastRecordingTake.takeId;
   json += F(",\"error\":");json += static_cast<uint32_t>(capture.error);
   json += F(",\"sample_rate\":");json += capture.sampleRate;
   json += F(",\"buffer_bytes\":");json += capture.bufferBytes;
@@ -5441,11 +5513,8 @@ void setup() {
   if(prefs.getBool("profile_pending",false)) selectedProfile="";
   prefs.end();
   setOledStatus(OledMode::Boot, F("BOOT"), F("WIFI ONLY"), 15);
-  if (kForceSetupAp) {
-    startSetupAp(true, "forced_setup");
-  } else if (!connectSavedWifi()) {
-    startSetupAp(false, "startup_wifi_unavailable");
-  }
+  if(kForceSetupAp)startSetupAp(true,"forced_setup");
+  else beginSavedWifiConnection();
   setupRoutes();
   if (wifiReady && !setupApMode) {
     autoLoginSavedDevice();
@@ -5453,8 +5522,12 @@ void setup() {
 }
 
 void loop() {
+  const uint32_t now=millis();
+  if(loopLastAtMs)loopLongestGapMs=std::max(loopLongestGapMs,uint32_t(now-loopLastAtMs));
+  loopLastAtMs=now;
   tickCardputerInput();
-  cardputerTickKeyClick(i2sReady && !audioBusy && !officialVoiceNetworkBusy() && !mcuAudioPlaying && mcuAudioCount == 0 &&
+  cardputerTickKeyClick(i2sReady && !audioBusy && !studioAuthJob.busy() && !studioConnectJob.busy() &&
+      !officialSelectionJob.busy() && !officialHistoryJob.busy() && !officialVoiceNetworkBusy() && !mcuAudioPlaying && mcuAudioCount == 0 &&
       !listeningModeEnabled && !listeningMonitorReady && !restartPending &&
       !idlePowerSaveActive &&
       outputVolumePercent > 0 && !cardputerTalkPressed());
@@ -5465,6 +5538,7 @@ void loop() {
   // Header parsing is synchronous; never let a management request stall audio.
   if(!officialVoiceNetworkBusy()) server.handleClient();
   if (wsReady) mcuSocketLoop();
+  tickStudioConnect();
   tickOfficialStudio();
   tickOfficialVoice();
   tickMcuReauth();
@@ -5479,6 +5553,7 @@ void loop() {
   tickOledStatusReturn();
   handleBootButton();
   tickIdlePowerSave();
+  tickExperience();
   refreshOled();
 
   if (wifiReady && WiFi.status() != WL_CONNECTED) {
@@ -5490,26 +5565,14 @@ void loop() {
                     static_cast<int>(WiFi.status()),
                     static_cast<unsigned long>(kWifiDisconnectGraceMs));
       WiFi.reconnect();
-    } else if (now - wifiDisconnectedSinceMs >= kWifiDisconnectGraceMs) {
-      setOledStatus(OledMode::Error, F("WIFI"), F("LOST"), 0);
-      delay(500);
-      wifiDisconnectedSinceMs = 0;
-      if (!connectSavedWifi()) {
-        startSetupAp(false, "wifi_reconnect_failed");
-      }
+    } else if(now-wifiDisconnectedSinceMs>=kWifiDisconnectGraceMs) {
+      wifiDisconnectedSinceMs=0;beginSavedWifiConnection();
     }
   } else if (wifiReady) {
     wifiDisconnectedSinceMs = 0;
   }
-  if (!wifiReady && savedNetworkRetry.begin(millis(), audioBusy || mcuAudioPlaying || restartPending)) {
-    Serial.println(F("WiFi retrying saved networks after automatic setup; login preserved"));
-    if (connectSavedWifi()) {
-      autoLoginSavedDevice();
-    } else {
-      savedNetworkRetry.failed(millis());
-      Serial.printf("WiFi saved retry failed; next attempt in %lu ms\n",
-                    static_cast<unsigned long>(savedNetworkRetry.delayMs()));
-      startSetupAp(false, "wifi_reconnect_failed");
-    }
-  }
+  tickSavedWifiConnection();
+  if(!wifiReady && !savedWifiJoin.active() && !studioAuthJob.busy() && !studioConnectJob.busy() &&
+      savedNetworkRetry.begin(millis(),audioBusy || officialVoiceNetworkBusy() || restartPending))
+    beginSavedWifiConnection();
 }

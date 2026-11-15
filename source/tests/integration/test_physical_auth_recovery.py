@@ -1,5 +1,6 @@
 """Offline safety regressions. No listener, device, model or voice requests."""
 import hashlib
+import base64
 import json
 from pathlib import Path
 import signal
@@ -55,6 +56,40 @@ class RecoverySafetyTests(unittest.TestCase):
                            ("HERMES_AGENT_BRIDGE_ENDPOINT", "tcp://127.0.0.1:49165")]:
             with self.subTest(key=key), self.assertRaises(auth.Failure):
                 auth.validate_environment({**environment, key: value}, home)
+
+    def test_current_app_entry_is_pinned_by_version_and_hash_not_manifest_claim(self):
+        with tempfile.TemporaryDirectory() as folder:
+            home = Path(folder)
+            entry = home / "index.js"
+            entry.write_bytes(b"offline synthetic current App entry")
+            digest = hashlib.sha256(entry.read_bytes()).hexdigest()
+            manifest = {"baseUrl": "http://127.0.0.1:19038", "port": 19038, "bridgePort": 19039,
+                        "version": "0.8.24", "entry": str(entry), "serverSha256": digest,
+                        "workspace": str(home / "workspace")}
+            with patch.object(auth, "APP_0824_SHA256", digest):
+                auth.validate_manifest(manifest, home)
+                self.assertTrue(auth.bundle_capabilities(entry)["ordinaryChatJwtContractVerified"])
+                manifest["version"] = "0.8.25"
+                with self.assertRaises(auth.Failure):
+                    auth.validate_manifest(manifest, home)
+            manifest["version"] = "0.8.24"
+            with self.assertRaises(auth.Failure):
+                auth.validate_manifest(manifest, home)
+
+    def test_fresh_machine_identity_must_match_before_recovery_is_attributed(self):
+        run = auth.Recovery.__new__(auth.Recovery)
+        expected = ("synthetic-machine", "desktop", 19038)
+        run.machine_identity = expected
+        run.http = Mock(return_value=(200, json.dumps({"device_id": expected[0],
+            "endpoint_kind": expected[1], "http_port": expected[2]}).encode()))
+        self.assertEqual(run.verify_machine_identity(), expected)
+        for field, changed in (("device_id", "other-machine"), ("endpoint_kind", "other-kind"),
+                               ("http_port", 8748)):
+            row = {"device_id": expected[0], "endpoint_kind": expected[1], "http_port": expected[2]}
+            row[field] = changed
+            run.http.return_value = (200, json.dumps(row).encode())
+            with self.subTest(field=field), self.assertRaises(auth.Failure):
+                run.verify_machine_identity()
 
     def test_private_writes_are_atomic_and_do_not_delete_an_existing_temporary(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -198,8 +233,22 @@ class RecoverySafetyTests(unittest.TestCase):
             run.native_audit = Mock()
             run.http = Mock(return_value=(200, b""))  # Must have become401 after invalidation.
             with self.assertRaises(auth.Failure):
-                run.execute()
+                run.execute("signature-rotation")
             run.restore.assert_called_once_with()
+
+    def test_verified_process_environment_must_match_the_exact_launched_environment(self):
+        run = auth.Recovery.__new__(auth.Recovery)
+        run.pid, run.birth = 12345, "fixture-birth"
+        run.home = Path("/private/isolated")
+        run.original = {"node": "/private/node", "entry": "/private/entry.js"}
+        run.expected_environment = {"AUTH_JWT_SECRET": "synthetic-expected"}
+        with patch.object(auth, "listeners", side_effect=lambda port: [12345] if port == 19038 else []), \
+                patch.object(auth, "process_stamp", return_value=("S", "fixture-birth")), \
+                patch.object(auth, "process_arguments", return_value=(["/private/node", "/private/entry.js"],
+                    {"AUTH_JWT_SECRET": "synthetic-different"})), \
+                patch.object(auth, "validate_manifest"), patch.object(auth, "validate_environment"), \
+                self.assertRaises(auth.Failure):
+            run.verify_process()
 
     def test_audit_loss_never_prevents_normal_environment_and_auth_restoration(self):
         for lost_audit in (True, False):
@@ -238,12 +287,143 @@ class RecoverySafetyTests(unittest.TestCase):
             run.verify_bridge()
         kill.assert_not_called()
 
+    def test_bridge_identity_accepts_only_the_official_isolated_runpy_bootstrap(self):
+        script = Path("/private/clean/agent-bridge/python/hermes_bridge.py")
+        home = Path("/private/isolated")
+        root = "/private/existing-agent"
+        arguments = [str(script), "--endpoint", "tcp://127.0.0.1:19039", "--agent-root", root,
+                     "--hermes-home", str(home / "hermes")]
+        env = {"HERMES_HOME": str(home / "hermes"), "HERMES_AGENT_ROOT": root,
+               "HERMES_AGENT_BRIDGE_ENDPOINT": "tcp://127.0.0.1:19039"}
+        code = (f"import sys, runpy; sys.path.insert(0, {root!r}); sys.argv = {arguments!r}; "
+                f"runpy.run_path({str(script)!r}, run_name='__main__')")
+        self.assertTrue(auth.official_bridge_process(["/private/python", *arguments], env, script, home))
+        self.assertTrue(auth.official_bridge_process(["/private/python", "-I", "-c", code], env, script, home))
+        for changed in (code + "; import os", code.replace("run_name='__main__'", "run_name='other'"),
+                        code.replace("sys.path.insert(0", "sys.path.insert(1"),
+                        code.replace("tcp://127.0.0.1:19039", "tcp://127.0.0.1:8748"),
+                        code.replace(str(home / "hermes"), "/private/production")):
+            with self.subTest(changed=changed[-30:]):
+                self.assertFalse(auth.official_bridge_process(["/private/python", "-I", "-c", changed], env, script, home))
+        self.assertFalse(auth.official_bridge_process(["/private/python", "-I", "-c", code],
+            {**env, "HERMES_HOME": "/private/production"}, script, home))
+
     def test_transport_redirects_are_not_followed_and_budget_covers_official_startup(self):
         self.assertIsNone(auth.NoRedirect().redirect_request(None, None, 302, "", {}, "https://example.test"))
         self.assertEqual(auth.STARTUP_SECONDS, 180)
         self.assertFalse(auth.running_stamp(None))
         self.assertFalse(auth.running_stamp(("Z+", "fixture")))
         self.assertTrue(auth.running_stamp(("Ss", "fixture")))
+
+    def test_http_reads_bypass_environment_proxy_and_have_fresh_nonsecret_urls(self):
+        run = auth.Recovery.__new__(auth.Recovery)
+        run.original = {"baseUrl": "http://127.0.0.1:19038", "profile": "default"}
+        run.device_url = "http://192.168.50.3/health"
+        response = Mock()
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        response.status, response.read.return_value = 200, b"{}"
+        opener = Mock()
+        opener.open.return_value = response
+        with patch.object(auth.urllib.request, "build_opener", return_value=opener) as build:
+            run.http("/api/auth/me", "synthetic-private-token")
+            run.http("", device=True)
+            run.http("", device=True)
+        handlers = build.call_args.args
+        self.assertTrue(any(isinstance(item, auth.urllib.request.ProxyHandler) and item.proxies == {}
+                            for item in handlers))
+        requests = [call.args[0] for call in opener.open.call_args_list]
+        self.assertNotEqual(requests[1].full_url, requests[2].full_url)
+        for request in requests:
+            self.assertIn("_cardputer_auth_probe=", request.full_url)
+            self.assertNotIn("synthetic-private-token", request.full_url)
+            self.assertEqual(request.get_header("Cache-control"), "no-cache, no-store")
+
+    def test_harness_cannot_issue_mcu_login_or_other_mutating_requests(self):
+        run = auth.Recovery.__new__(auth.Recovery)
+        run.original = {"baseUrl": "http://127.0.0.1:19038"}
+        with patch.object(auth.urllib.request, "build_opener") as build:
+            for path in ("/api/auth/mcu-login", "/api/auth/change-password", "/api/mcu-devices"):
+                with self.subTest(path=path), self.assertRaises(auth.Failure):
+                    run.http(path, body={"fixture": True})
+            with self.assertRaises(auth.Failure):
+                run.http("/clear", body={}, device=True)
+        build.assert_not_called()
+
+    def exercise_expiry_fixture(self, fault=None):
+        with tempfile.TemporaryDirectory() as folder:
+            run = auth.Recovery.__new__(auth.Recovery)
+            run.preflight = Mock()
+            run.journal = Path(folder) / "absent.json"
+            run.token_path = Path(folder) / ".token"
+            run.token_path.write_bytes(b"offline-persisted-signing-token")
+            run.original, run.original_environment = {"userJwt": "normal-token", "username": "synthetic-user",
+                                                       "password": "synthetic-password"}, {}
+            run.pid, run.birth, run.report = 12345, "fixture", {"stages": [], "timeExpiryStageExecuted": False}
+            run.agent, run.last_uptime = "fixture-agent", 100
+            run.machine_identity = ("fixture-machine", "desktop", 19038)
+            run.save_state = lambda **updates: run.state.update(updates)
+            run.native_audit = lambda: auth.NativeLoginAudit(Path("/absent"), available=False)
+            run.capabilities = {"ordinaryChatJwtContractVerified": True}
+            run.device_health = Mock(return_value=({}, True))
+            run.presence, run.new_server_has_m5_tcp = Mock(return_value=True), Mock(return_value=True)
+            clock = {"now": 1000.0, "online": True, "environment": {}}
+            trace = []
+            def stop():
+                trace.append(("stop", clock["now"]))
+                clock["online"] = False
+            def start(env):
+                trace.append(("start", clock["now"], dict(env)))
+                clock["environment"], clock["online"] = dict(env), True
+            def http(path, token=None, body=None, **kwargs):
+                self.assertTrue(clock["online"], "No expiry probes may run while the process is stopped")
+                if path == "/api/auth/login":
+                    ttl = int(clock["environment"].get("HERMES_WEB_UI_AUTH_JWT_EXPIRES_IN", "2592000s")[:-1])
+                    payload = base64.urlsafe_b64encode(json.dumps({"iat": int(clock["now"]),
+                        "exp": int(clock["now"]) + ttl}).encode()).decode().rstrip("=")
+                    return 200, json.dumps({"token": "header." + payload + ".signature"}).encode()
+                if token == "normal-token":
+                    return 401, b""
+                times = json.loads(base64.urlsafe_b64decode(token.split(".")[1] + "=="))
+                return (401 if clock["now"] >= times["exp"] and fault != "expired_accepted" else 200), b"{}"
+            def sleep(seconds):
+                if fault == "interrupted":
+                    raise KeyboardInterrupt()
+                clock["now"] += seconds
+            run.stop, run.start, run.http, run.restore = stop, start, http, Mock()
+            with patch.object(auth.time, "monotonic", side_effect=lambda: clock["now"]), \
+                    patch.object(auth.time, "time", side_effect=lambda: clock["now"] - (100 if fault == "clock_backwards" else 0)), \
+                    patch.object(auth.time, "sleep", side_effect=sleep):
+                if fault:
+                    with self.assertRaises(KeyboardInterrupt if fault == "interrupted" else auth.Failure):
+                        run.execute("time-expiry")
+                    self.assertNotIn("passed", run.report)
+                    self.assertFalse(any(stage["name"] == "time expiry" for stage in run.report["stages"]))
+                else:
+                    result = run.execute("time-expiry")
+                    self.assertTrue(result["passed"])
+                    self.assertTrue(result["timeExpiryStageExecuted"])
+                    self.assertEqual(result["stages"][-1]["name"], "time expiry")
+                    self.assertEqual(result["stages"][-1]["oldJwtHttp"], 401)
+                    starts = [item for item in trace if item[0] == "start"]
+                    self.assertEqual(len(starts), 2)
+                    self.assertEqual(starts[0][2], starts[1][2])
+                    self.assertGreaterEqual(starts[1][1] - starts[0][1], 47)
+            run.restore.assert_called_once_with()
+            self.assertNotIn("synthetic-password", json.dumps(run.report))
+            self.assertNotIn("AUTH_JWT_SECRET", json.dumps(run.report))
+
+    def test_true_expiry_keeps_server_off_until_tokens_expire_then_restores_normal(self):
+        self.exercise_expiry_fixture()
+
+    def test_expired_token_still_accepted_fails_and_restores(self):
+        self.exercise_expiry_fixture("expired_accepted")
+
+    def test_backwards_wall_clock_never_claims_real_expiry_and_restores(self):
+        self.exercise_expiry_fixture("clock_backwards")
+
+    def test_interrupt_while_server_is_off_always_restores(self):
+        self.exercise_expiry_fixture("interrupted")
 
 
 if __name__ == "__main__":

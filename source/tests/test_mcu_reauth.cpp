@@ -423,6 +423,55 @@ void stagedReplacementCannotRestartAutomatically() {
   assert(!retry.begin(1000000, replaced));
   assert(!retry.request(kTarget) || !retry.begin(1000001, replaced));
 }
+
+void changedBindingRequiresExplicitAction() {
+  RetryPolicy policy;
+  assert(policy.request(kTarget));
+  assert(policy.begin(100, kReady));
+  assert(policy.complete(Outcome::BindingChanged, 101));
+  assert(policy.rejected() && policy.bindingChanged() && policy.blocksSocket());
+  assert(!policy.inFlight());
+  assert(policy.matches(kTarget)); // Never substitute the newly discovered identity.
+  assert(policy.request(kTarget));
+  assert(!policy.begin(1000000, kReady));
+  policy.requireManual(kTarget, true);
+  assert(policy.bindingChanged());
+  policy.cancel(); // Existing explicit native login/profile selection resets the diagnosis.
+  assert(!policy.bindingChanged() && !policy.blocksSocket());
+  assert(policy.request(kTarget));
+  assert(policy.begin(1000001, kReady));
+  assert(policy.complete(loginOutcome(true, false, -1), 1000002));
+  assert(!policy.bindingChanged() && !policy.rejected());
+}
+
+void onlyFreshVerifiedSameEndpointConfirmsBindingChange() {
+  const Target saved{"saved|desktop|8748", "http://192.168.0.104:8748", "", "default", false};
+  const native_reauth::BindingObservation changed{"current|desktop|8748", true, false, true, 100};
+  assert(native_reauth::observedBindingChange(saved, changed, 101, 30000));
+  auto candidate = changed;
+  candidate.deviceKey = saved.deviceKey;
+  assert(!native_reauth::observedBindingChange(saved, candidate, 101, 30000));
+  candidate = changed; candidate.sameEndpoint = false;
+  assert(!native_reauth::observedBindingChange(saved, candidate, 101, 30000));
+  candidate = changed; candidate.identityVerified = false;
+  assert(!native_reauth::observedBindingChange(saved, candidate, 101, 30000));
+  candidate = changed; candidate.remote = true;
+  assert(!native_reauth::observedBindingChange(saved, candidate, 101, 30000));
+  candidate = changed; candidate.deviceKey = "incomplete";
+  assert(!native_reauth::observedBindingChange(saved, candidate, 101, 30000));
+  assert(!native_reauth::observedBindingChange(saved, changed, 30100, 30000));
+  assert(!native_reauth::observedBindingChange(saved, changed, 101, 0));
+  assert(!native_reauth::observedBindingChange(kTarget, changed, 101, 30000)); // Remote binding cannot be reclassified by LAN.
+  candidate = changed; candidate.lastSeenMs = std::numeric_limits<uint32_t>::max() - 10;
+  assert(native_reauth::observedBindingChange(saved, candidate, 20, 32));
+  assert(!native_reauth::observedBindingChange(saved, candidate, 21, 32));
+  // A normal expired token, discovery miss or transport failure never acquires this reason.
+  RetryPolicy policy;
+  for (const auto result : {Outcome::NoAttempt, Outcome::TransientFailure, Outcome::Rejected}) {
+    policy.cancel(); assert(policy.request(saved)); assert(policy.begin(1, kReady));
+    assert(policy.complete(result, 2)); assert(!policy.bindingChanged());
+  }
+}
 } // namespace
 
 int main() {
@@ -445,5 +494,7 @@ int main() {
   staleAudioCannotHoldReauthentication();
   stagedRejectionRestoresManualTarget();
   stagedReplacementCannotRestartAutomatically();
-  std::puts("MCU reauth: 19 scenarios passed (retry, identity, cached startup, namespace errors, staged rejection/replacement, stale audio cleanup)");
+  changedBindingRequiresExplicitAction();
+  onlyFreshVerifiedSameEndpointConfirmsBindingChange();
+  std::puts("MCU reauth: 21 scenarios passed (retry, identity, cached startup, verified binding changes, namespace errors, staged rejection/replacement, stale audio cleanup)");
 }

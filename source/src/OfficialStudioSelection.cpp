@@ -42,6 +42,7 @@ bool cancelled(const Cancellation* token) {return token && token->cancelled();}
 void clearInput(Input& input) {
   input.baseUrl.fill(0);wipe(input.userJwt.data(),input.userJwt.size());
   input.profile.fill(0);input.agentId.fill(0);input.epoch=0;
+  input.preference=Preference::Automatic;
 }
 bool jsonMediaType(const char* text) {
   if(!text) return false;
@@ -125,7 +126,8 @@ class Projection final : public bounded_json::Listener {
       used_=0;buffer_[0]=0;return true;
     }
     if(event.type==Type::StringChunk||event.type==Type::NumberChunk) {
-      if(event.size>sizeof(buffer_)-1-used_||std::memchr(event.data,0,event.size))return fail(Result::Invalid);
+      const size_t limit=isModelApiMode(event.path)?official_studio_models::kApiModeMaxBytes:sizeof(buffer_)-1;
+      if(event.size>limit-used_||std::memchr(event.data,0,event.size))return fail(Result::Invalid);
       std::memcpy(buffer_+used_,event.data,event.size);used_+=event.size;buffer_[used_]=0;return true;
     }
     if(event.type==Type::StringEnd) {
@@ -146,13 +148,19 @@ class Projection final : public bounded_json::Listener {
       if(wanted!=Wanted::Boolean)return fail(Result::Invalid);
       locate(event.path,true).set(event.booleanValue);return memoryOk();
     }
-    if(event.type==Type::Null && stage_==Stage::Models && key(event.path,event.path.size-1,"api_mode"))return true;
+    if(event.type==Type::Null && stage_==Stage::Models &&
+       ((event.path.size==5&&key(event.path,4,"api_mode"))||isModelApiMode(event.path)))return true;
     return fail(Result::Invalid);
   }
  private:
   Stage stage_;JsonDocument& document_;char buffer_[513]{};size_t used_=0;
   bool fail(Result failure){result=failure;return false;}
   bool memoryOk(){return result==Result::Ok && (!document_.overflowed()||fail(Result::NoMemory));}
+  bool isModelApiMode(Path path)const {
+    return stage_==Stage::Models&&path.size==6&&key(path,0,"profiles")&&index(path,1)&&
+        key(path,2,"groups")&&index(path,3)&&key(path,4,"api_mode_by_model")&&
+        path.segments[5].kind==bounded_json::SegmentKind::Key;
+  }
   Wanted field(Path path)const {
     if(!path.size)return Wanted::Object;
     if(stage_==Stage::Account) {
@@ -193,8 +201,9 @@ class Projection final : public bounded_json::Listener {
     if(path.size==5) {
       if(key(path,4,"provider")||key(path,4,"api_mode"))return Wanted::String;
       if(key(path,4,"models"))return Wanted::Array;
-      if(key(path,4,"model_meta"))return Wanted::Object;
+      if(key(path,4,"model_meta")||key(path,4,"api_mode_by_model"))return Wanted::Object;
     }
+    if(isModelApiMode(path))return Wanted::String;
     if(path.size==6&&key(path,4,"models")&&index(path,5))return Wanted::String;
     if(key(path,4,"model_meta")&&path.segments[5].kind==bounded_json::SegmentKind::Key) {
       if(path.size==6)return Wanted::Object;
@@ -323,6 +332,7 @@ bool validInput(const Input& input) {
   const size_t agent=boundedLength(input.agentId.data(),kAgentBytes);
   if(!base||base>kBaseUrlBytes||!jwt||jwt>kJwtBytes||!profile||profile>kProfileBytes||
       !agent||agent>kAgentBytes||!input.epoch||!official_studio::agentRoute(input.agentId.data()))return false;
+  if(input.preference!=Preference::Automatic&&input.preference!=Preference::Studio&&input.preference!=Preference::Native)return false;
   const char* authority=nullptr;
   if(!std::strncmp(input.baseUrl.data(),"http://",7))authority=input.baseUrl.data()+7;
   if(!std::strncmp(input.baseUrl.data(),"https://",8))authority=input.baseUrl.data()+8;
@@ -333,12 +343,12 @@ bool validInput(const Input& input) {
   for(const char* p=input.profile.data();*p;++p)if(uint8_t(*p)<0x20||*p==0x7f)return false;
   return !official_studio_models::blank(input.profile.data());
 }
-Result makeInput(Input& output,const char* base,const char* jwt,const char* profile,const char* agent,uint32_t epoch) {
+Result makeInput(Input& output,const char* base,const char* jwt,const char* profile,const char* agent,uint32_t epoch,Preference preference) {
   // Avoid a second ~5KiB Input on the 12KiB Arduino loop stack, and support
   // even cross-field aliases into output without writing before all copies.
   auto candidate=std::unique_ptr<Input>(new(std::nothrow)Input);
   if(!candidate){clearInput(output);return Result::NoMemory;}
-  candidate->epoch=epoch;
+  candidate->epoch=epoch;candidate->preference=preference;
   if(!copy(candidate->baseUrl,base)||!copy(candidate->userJwt,jwt)||!copy(candidate->profile,profile)||
       !copy(candidate->agentId,agent)||!validInput(*candidate)){clearInput(output);return Result::Invalid;}
   output=*candidate;return Result::Ok;
@@ -349,28 +359,40 @@ official_studio::NativeReadiness Output::readiness(const official_studio::Contex
       !official_studio::validContext(context)||!official_studio::equal(context.accountId,accountId.data())||
       !official_studio::equal(context.profile,profile.data())||!official_studio::equal(context.agentId,agentId.data()))
     value.result=official_studio::Result::StaleContext;
+  else if(nativeDefaultAttemptPermitted&&preference==Preference::Native&&
+      (nativeResult==official_studio::Result::AuthenticationRequired||
+       nativeResult==official_studio::Result::RetryableUnavailable))
+    value.result=official_studio::Result::Ok; // Default-only attempt, not catalog/auth success.
   else value.result=nativeResult;
   return value;
 }
 
 Output resolve(const Input& input,Transport& transport,const Cancellation* cancellation) {
   Output output;output.epoch=input.epoch;output.profile=input.profile;output.agentId=input.agentId;
+  output.preference=input.preference;
   if(!validInput(input))return output;
   if(cancelled(cancellation)){output.result=Result::Cancelled;return output;}
+  const auto& route=*official_studio::agentRoute(input.agentId.data());
+  if((input.preference==Preference::Native&&!route.global)||
+      (input.preference==Preference::Studio&&!route.scoped)) {
+    output.result=Result::PreferenceUnavailable;return output;
+  }
   Budget budget(kJsonMemoryBytes-kFixedJsonBytes);JsonDocument document(&budget);
   if(!fetch(input,Stage::Account,transport,cancellation,budget,document,output))return output;
   if(!document["user"]["id"].is<uint64_t>()){output.result=Result::Invalid;return output;}
   const uint64_t account=document["user"]["id"].as<uint64_t>();
   if(!account||account>UINT64_C(9007199254740991)){output.result=Result::Invalid;return output;}
   std::snprintf(output.accountId.data(),output.accountId.size(),"%llu",static_cast<unsigned long long>(account));
-  const auto& route=*official_studio::agentRoute(input.agentId.data());
-  bool useNative=!route.scoped;
-  if(route.scoped) {
+  bool useNative=input.preference==Preference::Native||!route.scoped;
+  if(!useNative) {
     if(!fetch(input,Stage::Models,transport,cancellation,budget,document,output))return output;
     output.selection=official_studio_models::selectProfileDefault(document,input.profile.data(),route.id);
+    if(input.preference==Preference::Studio&&output.selection.result==official_studio_models::Result::Ok&&
+       output.selection.origin!=official_studio_models::Origin::ProfileDefault)
+      output.selection.origin=official_studio_models::Origin::CompatibleDefault;
     if(output.selection.result!=official_studio_models::Result::Ok) {
       const auto failure=modelFailure(output.selection.result);
-      useNative=route.global && (output.selection.result==official_studio_models::Result::NeedsConfiguration||
+      useNative=input.preference==Preference::Automatic&&route.global && (output.selection.result==official_studio_models::Result::NeedsConfiguration||
                                output.selection.result==official_studio_models::Result::NotAvailable);
       if(!useNative){output.result=failure;return output;}
     }
@@ -386,7 +408,7 @@ Output resolve(const Input& input,Transport& transport,const Cancellation* cance
     if(!route.global){output.result=Result::Unavailable;return output;}
     if(!fetch(input,Stage::NativeModels,transport,cancellation,budget,document,output))return output;
     if(!document["agents"].is<JsonArrayConst>()){output.result=Result::Invalid;return output;}
-    unsigned matches=0;
+    unsigned matches=0;bool defaultCatalogAdvisory=false;
     for(JsonVariantConst entry:document["agents"].as<JsonArrayConst>()) {
       if(!entry.is<JsonObjectConst>()||!official_studio_models::plainString(entry["agentId"])||
           !official_studio_models::plainString(entry["status"])||!entry["models"].is<JsonArrayConst>()) {
@@ -402,7 +424,10 @@ Output resolve(const Input& input,Transport& transport,const Cancellation* cance
             official_studio_models::blank(model["id"].as<const char*>())||
             !official_studio_models::optionalFlag(model,"hidden")) {output.result=Result::Invalid;return output;}
       }
-      if(official_studio::jsonStringEquals(entry["agentId"],route.id))++matches;
+      if(official_studio::jsonStringEquals(entry["agentId"],route.id)) {
+        ++matches;
+        defaultCatalogAdvisory=official_studio::equal(status,"auth_required")||official_studio::equal(status,"error");
+      }
     }
     if(matches!=1){output.result=Result::Invalid;return output;}
     JsonDocument tools(&budget);tools["tools"][0]["id"]=input.agentId.data();tools["tools"][0]["installed"]=installed;
@@ -411,8 +436,11 @@ Output resolve(const Input& input,Transport& transport,const Cancellation* cance
     context.profile=input.profile.data();context.agentId=input.agentId.data();context.sessionId="selection-validation";
     context.mode=official_studio::Mode::Global;context.connectionEpoch=input.epoch;
     output.nativeResult=official_studio::inspectNativeReadiness(context,tools.as<JsonVariantConst>(),document.as<JsonVariantConst>()).result;
+    output.nativeDefaultAttemptPermitted=input.preference==Preference::Native&&defaultCatalogAdvisory&&
+        (output.nativeResult==official_studio::Result::AuthenticationRequired||
+         output.nativeResult==official_studio::Result::RetryableUnavailable);
     output.jsonPeakBytes=kFixedJsonBytes+budget.peak();
-    if(output.nativeResult!=official_studio::Result::Ok) {
+    if(output.nativeResult!=official_studio::Result::Ok&&!output.nativeDefaultAttemptPermitted) {
       output.result=output.nativeResult==official_studio::Result::RetryableUnavailable?Result::Transient:
           output.nativeResult==official_studio::Result::InvalidPayload?Result::Invalid:Result::Unavailable;
       if(output.result==Result::Transient)output.retryAfterMs=5000;

@@ -18,7 +18,11 @@ constexpr size_t kJsonMemoryBytes = 32 * 1024;
 constexpr size_t kJsonMaxDepth = 16, kJsonKeyBytes = 512;
 constexpr uint32_t kTaskStackBytes = 8192;
 
-enum class Result : uint8_t { Ok, AuthInvalid, Transient, Unavailable, Invalid, NoMemory, Cancelled };
+enum class Preference : uint8_t { Automatic, Studio, Native };
+enum class Result : uint8_t {
+  Ok, AuthInvalid, Transient, Unavailable, Invalid, NoMemory, Cancelled,
+  DefaultModelIncompatible, PreferenceUnavailable
+};
 enum class Stage : uint8_t { Input, Account, Models, Installed, NativeModels, Complete };
 
 struct Input {
@@ -27,17 +31,23 @@ struct Input {
   std::array<char,kProfileBytes+1> profile{};
   std::array<char,kAgentBytes+1> agentId{};
   uint32_t epoch = 0;
+  Preference preference = Preference::Automatic;
   ~Input();  // Clears this owned JWT copy; never logs it.
 };
 
 // UTF-8 byte limits are explicit; no partial/truncated binding is accepted.
 Result makeInput(Input& output, const char* baseUrl, const char* userJwt,
-                 const char* profile, const char* canonicalAgentId, uint32_t epoch);
+                 const char* profile, const char* canonicalAgentId, uint32_t epoch,
+                 Preference preference = Preference::Automatic);
 bool validInput(const Input& input);
 
 struct Output {
   Result result = Result::Invalid;
   Stage stage = Stage::Input;
+  // Explicit Native without a chosen model may try the CLI default despite a
+  // valid HTTP200 catalog's auth_required/error. nativeResult retains that
+  // observation; authorization/run success is not asserted. This fits padding.
+  bool nativeDefaultAttemptPermitted = false;
   int httpStatus = 0;
   uint32_t epoch = 0, retryAfterMs = 0;
   size_t jsonPeakBytes = 0;  // Includes SAX workspace + JSON allocator overhead.
@@ -45,6 +55,7 @@ struct Output {
   std::array<char,kProfileBytes+1> profile{};
   std::array<char,kAgentBytes+1> agentId{};
   official_studio::Mode mode = official_studio::Mode::Scoped;
+  Preference preference = Preference::Automatic;
   official_studio_models::Selection selection;
   official_studio::Result nativeResult = official_studio::Result::NativeNotReady;
 
@@ -87,9 +98,17 @@ class Cancellation {
 };
 
 // Pure synchronous pipeline for a dedicated worker or host fixture transport.
-// Profile scoped defaults take priority. Normal absence of a scoped model may
-// use a supported native/global mode; malformed/OOM/permission responses never
-// silently switch mode. No retry occurs here; retryAfterMs is a bounded hint.
+// Studio follows the official fresh New Chat Profile selection: keep a valid
+// Profile default, otherwise use that Agent's compatible configured groups in
+// response order. CompatibleDefault identifies a non-exact selection for UI;
+// no browser-local preference, provider secret or invented identity is used.
+// It never changes to Native. Native requires route.global, skips models and
+// validates installation and native/default admission. Only explicit Native
+// treats catalog auth_required/error as advisory; Automatic remains strict.
+// This Input does not select an explicit native model. Automatic preserves legacy behavior;
+// new application code should explicitly select Studio or Native. Unsupported
+// route/preference pairs return PreferenceUnavailable without network access.
+// No retry occurs here; retryAfterMs is a bounded hint.
 Output resolve(const Input&, Transport&, const Cancellation* = nullptr);
 
 enum class StartResult : uint8_t { Started, Busy, Invalid, NoMemory, NotSupported };

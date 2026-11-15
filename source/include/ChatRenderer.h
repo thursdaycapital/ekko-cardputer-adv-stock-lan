@@ -8,6 +8,7 @@
 #include "EkkoPixelFont12.h"
 #include <M5GFX.h>
 #include <array>
+#include <cstdio>
 
 struct NativeChatRenderOptions {
   size_t agentIndex = 0;
@@ -18,6 +19,9 @@ struct NativeChatRenderOptions {
   bool online = false;
   bool sending = false;
   bool historyMode = false;
+  bool sendUncertain = false, sendReviewable = false;
+  bool recording = false;
+  uint32_t recordingElapsedMs = 0, recordingLimitMs = 5000;
 };
 struct NativeChatRenderMetrics {
   uint16_t totalLines = 0;
@@ -121,9 +125,11 @@ inline uint16_t messageLines(M5Canvas& frame, const NativeChatMessage& message) 
 }
 } // namespace native_chat_render
 
-inline uint16_t nativeChatVisibleLines(bool historyMode, bool hasNotice, bool composing = false) {
+inline uint16_t nativeChatVisibleLines(bool historyMode, bool hasNotice, bool composing = false,
+                                       bool sendUncertain = false) {
   return static_cast<uint16_t>(((historyMode ? native_chat_render::historyFooterTop :
       composing ? native_chat_render::composingTop : native_chat_render::composerTop) -
+      (sendUncertain ? native_chat_render::rowHeight : 0) -
       (hasNotice ? native_chat_render::noticeContentTop : native_chat_render::contentTop)) /
                                native_chat_render::rowHeight);
 }
@@ -158,12 +164,33 @@ inline NativeChatRenderMetrics nativeDrawChat(M5Canvas& frame, const NativeChatM
   drawClipped(frame, status, 164, 2, 68);
   frame.setFont(&ekko_pixel_font::kFont);
   frame.setTextColor(paper, ink);
-  drawClipped(frame, options.historyMode ? "浏览历史" : "Tab历史", 32, 18, 65);
+  drawClipped(frame, options.historyMode ? "浏览历史" : "Fn+上下", 32, 18, 65);
   frame.setTextColor(lineColor, ink);
   drawClipped(frame, ime && ime->enabled() ? "中文 Ctrl+Space" : "英文 Ctrl+Space", 100, 18, 132);
   frame.fillCircle(236, 15, 2, options.online ? amber : quiet);
   frame.drawFastHLine(0, headerHeight - 1, 240, amber);
   frame.setFont(&ekko_pixel_font::kFont);
+
+  if (options.recording) {
+    // Recording owns the content area; draft and scroll position remain in
+    // the model and are rendered again after release/cancellation.
+    frame.fillRoundRect(7, 42, 226, 85, 5, sheet);
+    frame.drawRoundRect(7, 42, 226, 85, 5, lineColor);
+    frame.setTextColor(ink, sheet);
+    frame.drawString("正在录音", 16, 49);
+    const uint32_t limit = options.recordingLimitMs ? options.recordingLimitMs : 5000;
+    const uint32_t elapsed = std::min(options.recordingElapsedMs, limit);
+    char timer[48]{};
+    std::snprintf(timer, sizeof(timer), "%lu.%lu / %lu.%lu 秒",
+        static_cast<unsigned long>(elapsed / 1000), static_cast<unsigned long>((elapsed % 1000) / 100),
+        static_cast<unsigned long>(limit / 1000), static_cast<unsigned long>((limit % 1000) / 100));
+    drawClipped(frame, timer, 16, 68, 208);
+    frame.fillRoundRect(16, 88, 208, 7, 3, lineColor);
+    const int progress = static_cast<int>(uint64_t(208) * elapsed / limit);
+    if (progress) frame.fillRect(16, 88, progress, 7, ink);
+    frame.drawString("松开发送 · Esc取消", 16, 105);
+    return metrics;
+  }
 
   const bool hasNotice = options.notice && *options.notice;
   const int top = hasNotice ? noticeContentTop : contentTop;
@@ -172,7 +199,7 @@ inline NativeChatRenderMetrics nativeDrawChat(M5Canvas& frame, const NativeChatM
     frame.setTextColor(ink, userFill);
     drawClipped(frame, options.notice, 10, contentTop + 1, 219);
   }
-  const uint16_t visible = nativeChatVisibleLines(options.historyMode, hasNotice, composing);
+  const uint16_t visible = nativeChatVisibleLines(options.historyMode, hasNotice, composing, options.sendUncertain);
   std::array<uint16_t, kNativeChatMessageCount> bodyLineCounts{};
   uint16_t total = model.context() && model.context()->history_has_more ? 1 : 0;
   if (model.context() && model.context()->history_has_newer) ++total;
@@ -195,7 +222,7 @@ inline NativeChatRenderMetrics nativeDrawChat(M5Canvas& frame, const NativeChatM
     }
     ++virtualLine;
   };
-  if (model.context() && model.context()->history_has_more) hintRow(options.historyMode ? "← 加载更早消息" : "Tab历史 · 更早消息");
+  if (model.context() && model.context()->history_has_more) hintRow(options.historyMode ? "← 加载更早消息" : "Fn+上 · 更早消息");
   for (size_t index = 0; index < model.messageCount(); ++index) {
     const NativeChatMessage* message = model.messageAt(index);
     const uint16_t messageStart = virtualLine;
@@ -235,10 +262,11 @@ inline NativeChatRenderMetrics nativeDrawChat(M5Canvas& frame, const NativeChatM
     if (message->truncated_after) hintRow(options.historyMode ? "↓ 后续" : "↓ 后续 · Fn+下");
     if (message->gap) hintRow("片段缺失，请重新加载");
   }
-  if (model.context() && model.context()->history_has_newer) hintRow(options.historyMode ? "→ 加载更新消息" : "Tab历史 · 更新消息");
+  if (model.context() && model.context()->history_has_newer) hintRow(options.historyMode ? "→ 加载更新消息" : "Fn+下 · 更新消息");
   if (!total) {
     frame.setTextColor(quiet, paper);
-    drawClipped(frame, model.ready() ? "输入消息，开始对话" : "正在加载原生会话…", 18, top + rowHeight, 204);
+    drawClipped(frame, model.ready() ? "输入消息，开始对话" : "正在加载原生会话…", 18,
+        top + (visible > 1 ? rowHeight : 0), 204);
   }
   if (viewport.maxBottomOffset) {
     const int railHeight = visible * rowHeight;
@@ -246,6 +274,14 @@ inline NativeChatRenderMetrics nativeDrawChat(M5Canvas& frame, const NativeChatM
     const int thumb = std::max(5, railHeight * visible / std::max<uint16_t>(visible, total));
     const int position = (railHeight - thumb) * viewport.firstLine / viewport.maxBottomOffset;
     frame.fillRect(237, top + position, 2, thumb, quiet);
+  }
+
+  if (options.sendUncertain) {
+    const int bottom = options.historyMode ? historyFooterTop : composing ? composingTop : composerTop;
+    frame.fillRect(5, bottom - rowHeight, 230, rowHeight, userFill);
+    frame.setTextColor(ink, userFill);
+    drawClipped(frame, options.sendReviewable ? "Ctrl+OK 确认已查看记录" : "Fn+R 核对发送结果",
+        11, bottom - rowHeight + 1, 218);
   }
 
   if (options.historyMode) {
@@ -275,7 +311,7 @@ inline NativeChatRenderMetrics nativeDrawChat(M5Canvas& frame, const NativeChatM
     frame.setTextColor(quiet, sheet);
     if (!composing) {
       drawClipped(frame, "输入消息…", 11, inputTop + 3, draftWidth);
-      drawClipped(frame, "Fn+空格说话", 11, inputTop + 17, draftWidth);
+      if (!options.sendUncertain) drawClipped(frame, "G0/Fn+空格说话 5秒", 11, inputTop + 17, draftWidth);
     }
     if (input && options.cursorVisible) frame.drawFastVLine(10, inputTop + 4, 11, ink);
   } else {
@@ -295,8 +331,9 @@ inline NativeChatRenderMetrics nativeDrawChat(M5Canvas& frame, const NativeChatM
   }
   // Voice remains a physical shortcut; the composer exposes only Send.
   const int sendTop = composing ? 102 : 116;
-  frame.fillRoundRect(198, sendTop, 35, 17, 3, options.sending ? quiet : ink);
-  frame.setFont(&ekko_pixel_font::kFont); frame.setTextColor(paper, options.sending ? quiet : ink);
+  const bool sendBlocked = options.sending || options.sendUncertain;
+  frame.fillRoundRect(198, sendTop, 35, 17, 3, sendBlocked ? quiet : ink);
+  frame.setFont(&ekko_pixel_font::kFont); frame.setTextColor(paper, sendBlocked ? quiet : ink);
   frame.drawString("发送", 203, sendTop + 2);
   // Body, input and candidates share the same native 12px font metrics.
   frame.setFont(&ekko_pixel_font::kFont);

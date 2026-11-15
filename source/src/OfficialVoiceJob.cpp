@@ -18,7 +18,7 @@
 #endif
 
 namespace official_voice_job {
-static_assert(kTaskStackBytes>=official_voice::AudioDecoder::recommendedTaskStackBytes(),"voice decoder stack budget");
+static_assert(kTtsTaskStackBytes>=official_voice::AudioDecoder::recommendedTaskStackBytes(),"TTS MP3 decoder stack budget");
 namespace {
 void wipe(void* memory,size_t bytes) {
   auto* next=static_cast<volatile uint8_t*>(memory);while(bytes--)*next++=0;
@@ -142,6 +142,10 @@ struct SharedState final:official_voice::Cancellation {
 };
 
 Context::~Context(){wipe(userJwt.data(),userJwt.size());}
+uint32_t taskStackBytes(Type type,const Context& context) {
+  if(type==Type::Tts)return kTtsTaskStackBytes;
+  return !std::strncmp(context.baseUrl.data(),"http://",7)?kSttTaskStackBytes:kTlsSttTaskStackBytes;
+}
 bool validContext(const Context& context) {
   const size_t base=length(context.baseUrl.data(),kBaseUrlBytes),jwt=length(context.userJwt.data(),kJwtBytes);
   if(!base||base>kBaseUrlBytes||!jwt||jwt>kJwtBytes||!context.epoch||
@@ -191,39 +195,56 @@ StartResult Job::startStt(const Context& context,std::unique_ptr<official_voice:
 StartResult Job::start(const Context& context,Type type,const char* text,std::unique_ptr<official_voice::Reader> reader,
                        size_t bytes,uint32_t rate,uint16_t channels,uint64_t nonce,
                        std::unique_ptr<official_voice::Transport> transport,official_voice::RawPcmFormat raw) {
-  if(state_)return StartResult::Busy;
-  if(!validContext(context))return StartResult::Invalid;
-  if(type==Type::Tts&&!validText(text))return StartResult::Invalid;
+  lastStart_=StartDiagnostics{};
+  lastStart_.taskStackBytes=taskStackBytes(type,context);
+  const auto finish=[this](StartStage stage,StartResult result) {
+    lastStart_.stage=stage;lastStart_.result=result;return result;
+  };
+  if(state_)return finish(StartStage::Validation,StartResult::Busy);
+  if(!validContext(context))return finish(StartStage::Validation,StartResult::Invalid);
+  if(type==Type::Tts&&!validText(text))return finish(StartStage::Validation,StartResult::Invalid);
   if(type==Type::Stt&&(!reader||!bytes||bytes>16*1024*1024||(channels!=1&&channels!=2)||
-      rate<8000||rate>96000||bytes%(channels*2)||!nonce))return StartResult::Invalid;
+      rate<8000||rate>96000||bytes%(channels*2)||!nonce))return finish(StartStage::Validation,StartResult::Invalid);
 #ifndef ARDUINO
-  if(!transport)return StartResult::NotSupported;
+  if(!transport)return finish(StartStage::Validation,StartResult::NotSupported);
 #endif
   SharedState* state=nullptr;
 #ifdef ARDUINO
+  constexpr uint32_t caps=MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT;
+  lastStart_.resourcesAvailable=true;
+  lastStart_.beforeStateFreeBytes=heap_caps_get_free_size(caps);
+  lastStart_.beforeStateLargestBlockBytes=heap_caps_get_largest_free_block(caps);
   state=new(std::nothrow)SharedState;
 #else
   try{state=new(std::nothrow)SharedState;}
-  catch(const std::system_error&){return StartResult::NoMemory;}
-  catch(const std::bad_alloc&){return StartResult::NoMemory;}
+  catch(const std::system_error&){return finish(StartStage::StateAllocation,StartResult::NoMemory);}
+  catch(const std::bad_alloc&){return finish(StartStage::StateAllocation,StartResult::NoMemory);}
 #endif
-  if(!state)return StartResult::NoMemory;
-  if(!state->valid()){state->release();state->release();return StartResult::NoMemory;}
+  if(!state)return finish(StartStage::StateAllocation,StartResult::NoMemory);
+  if(!state->valid()) {
+    StartStage stage=StartStage::MutexCreation;
+#ifdef ARDUINO
+    if(state->mutex)stage=StartStage::SignalCreation;
+#endif
+    state->release();state->release();return finish(stage,StartResult::NoMemory);
+  }
   state->context=context;state->type=type;state->reader=std::move(reader);state->transport=std::move(transport);
   state->pcmBytes=bytes;state->rate=rate;state->channels=channels;state->nonce=nonce;state->raw=raw;
   if(text)copy(state->text,text);
   state->output.type=type;state->output.epoch=context.epoch;state->output.profile=context.profile;state->output.session=context.session;
   state_=state;
 #ifdef ARDUINO
-  if(xTaskCreate(worker,"studio-voice",kTaskStackBytes,state,1,nullptr)!=pdPASS) {
-    state_=nullptr;state->release();state->release();return StartResult::NoMemory;
+  lastStart_.beforeTaskFreeBytes=heap_caps_get_free_size(caps);
+  lastStart_.beforeTaskLargestBlockBytes=heap_caps_get_largest_free_block(caps);
+  if(xTaskCreate(worker,"studio-voice",taskStackBytes(type,context),state,1,nullptr)!=pdPASS) {
+    state_=nullptr;state->release();state->release();return finish(StartStage::TaskCreation,StartResult::NoMemory);
   }
 #else
   try{state->thread=std::thread(&Job::worker,state);}
-  catch(const std::system_error&){state_=nullptr;state->release();state->release();return StartResult::NoMemory;}
-  catch(const std::bad_alloc&){state_=nullptr;state->release();state->release();return StartResult::NoMemory;}
+  catch(const std::system_error&){state_=nullptr;state->release();state->release();return finish(StartStage::TaskCreation,StartResult::NoMemory);}
+  catch(const std::bad_alloc&){state_=nullptr;state->release();state->release();return finish(StartStage::TaskCreation,StartResult::NoMemory);}
 #endif
-  return StartResult::Started;
+  return finish(StartStage::Started,StartResult::Started);
 }
 bool Job::tryTakePcm(PcmBlock& block) {
   if(!state_||block)return false;

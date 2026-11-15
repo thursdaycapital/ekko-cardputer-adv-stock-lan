@@ -442,7 +442,71 @@ static void bindingValidationAndLegacyNamespace() {
   assert(std::strcmp(model.context()->binding, "中文绑定") == 0);
 }
 
+static void unknownSendBelongsToExactContext() {
+  NativeChatModel model;
+  assert(!model.setSendUnknown(true)&&!model.setSendUnknown(false));
+  assert(model.activate("hermes","default",1,"machine/admin/scoped")==NativeChatResult::Ok);
+  assert(!model.context()->send_unknown&&model.setSendUnknown(true));
+  assert(model.context()->send_unknown&&model.draft()->empty());
+  model.disconnect();assert(model.context()->send_unknown);
+  model.hideContext();assert(!model.context()&&!model.setSendUnknown(false));
+  assert(model.activate("hermes","default",2,"machine/libapi/scoped")==NativeChatResult::Ok);
+  assert(!model.context()->send_unknown); // Different account.
+  model.setSendUnknown(true);
+  assert(model.activate("hermes","work",3,"machine/admin/scoped")==NativeChatResult::Ok);
+  assert(!model.context()->send_unknown); // Different Profile.
+  model.setSendUnknown(true);
+  assert(model.activate("codex","default",4,"machine/admin/scoped")==NativeChatResult::Ok);
+  assert(!model.context()->send_unknown); // Different Agent.
+  model.setSendUnknown(true);
+  assert(model.activate("hermes","default",5,"other-machine/admin/scoped")==NativeChatResult::Ok);
+  assert(!model.context()->send_unknown); // Different machine.
+  assert(model.activate("hermes","default",6,"machine/admin/global")==NativeChatResult::Ok);
+  assert(!model.context()->send_unknown); // Different mode.
+  assert(model.activate("hermes","default",7,"machine/admin/scoped")==NativeChatResult::Ok);
+  assert(model.context()->send_unknown);
+  const NativeChatRoute route("hermes","default",7,"session");
+  assert(model.expectHistory("fresh-history")==NativeChatResult::Ok);
+  assert(model.beginHistory(route,"fresh-history")==NativeChatResult::Ok);
+  assert(model.endHistory(route,"fresh-history",false)==NativeChatResult::Ok);
+  model.clearMessages();assert(model.context()->send_unknown); // A readable page is not a send ACK.
+  assert(model.setSendUnknown(false)&&!model.context()->send_unknown);
+  assert(model.activate("hermes","default",8,"machine/libapi/scoped")==NativeChatResult::Ok);
+  assert(model.context()->send_unknown); // Explicit clear changed only admin/default/Hermes.
+  assert(model.activate("hermes","work",9,"machine/admin/scoped")==NativeChatResult::Ok);
+  assert(model.context()->send_unknown);
+  assert(model.activate("codex","default",10,"machine/admin/scoped")==NativeChatResult::Ok);
+  assert(model.context()->send_unknown);
+}
+
+static void emptyUnknownContextsAreNeverEvicted() {
+  NativeChatModel model;
+  for(size_t i=0;i<kNativeChatContextCount;++i) {
+    const std::string binding="unknown-scope-"+std::to_string(i);
+    assert(model.activate("hermes","default",uint32_t(i+1),binding.c_str())==NativeChatResult::Ok);
+    assert(model.draft()->empty()&&model.setSendUnknown(true));
+  }
+  assert(model.activate("hermes","default",20,"seventeenth-unknown")==NativeChatResult::DraftCapacity);
+  assert(!model.context()&&!model.setSendUnknown(false));
+  assert(model.activate("hermes","default",21,"unknown-scope-7")==NativeChatResult::Ok);
+  assert(model.context()->send_unknown&&model.setSendUnknown(false));
+  assert(model.activate("hermes","default",22,"seventeenth-unknown")==NativeChatResult::Ok);
+  assert(!model.context()->send_unknown); // Reused slot does not inherit the old flag.
+  model.setSendUnknown(true);
+  for(size_t i=0;i<kNativeChatContextCount;++i) {
+    if(i==7)continue;
+    const std::string binding="unknown-scope-"+std::to_string(i);
+    assert(model.activate("hermes","default",23,binding.c_str())==NativeChatResult::Ok);
+    assert(model.context()->send_unknown);
+  }
+  assert(model.activate("hermes","default",24,"unknown-scope-7")==NativeChatResult::DraftCapacity);
+  model.hideContext();
+  assert(model.activate("hermes","default",25,"seventeenth-unknown")==NativeChatResult::Ok);
+  assert(model.context()->send_unknown);
+}
+
 int main() {
+  unknownSendBelongsToExactContext();emptyUnknownContextsAreNeverEvicted();
   streamAndRoutes(); longMessageWindows(); historyTransactions(); limitsAndEviction();
   draftsNeverEvicted(); allocationFree(); unfinishedHistorySnapshots();
   bindingIsolationAndHiddenViews(); bindingDraftCapacityAndLru(); bindingValidationAndLegacyNamespace();

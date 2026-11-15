@@ -88,7 +88,7 @@ void officialFallbackAndVisibility() {
   assertEmpty(models::selectProfileDefault(response, "default", "codex"), models::Result::NotAvailable);
 
   response = fixture(); profile = response["profiles"][0].as<JsonObject>();
-  auto group = profile["groups"][1];
+  JsonObject group = profile["groups"][1].as<JsonObject>();
   group["model_meta"]["vendor/Default-Exact"]["disabled"] = true;
   selected = models::selectProfileDefault(response, "default", "claude-code");
   assert(selected.result == models::Result::Ok && std::string(selected.model.data()) == "vendor/First-Exact");
@@ -134,13 +134,83 @@ void explicitApiModesAndProviderPolicy() {
   }
 }
 
+void studio0822PerModelApiModes() {
+  // Public response shape observed in official Studio 0.8.22. No key, URL or
+  // private account fields are required to reproduce the compatibility issue.
+  JsonDocument response;
+  assert(!deserializeJson(response, R"({"profiles":[{"profile":"default",
+    "default":"deepseek-flash","default_provider":"custom:deepseek1017",
+    "groups":[{"provider":"custom:deepseek1017","api_mode":null,
+      "api_mode_by_model":{"deepseek-flash":"anthropic_messages","deepseek-v4-pro":"chat_completions"},
+      "models":["deepseek-flash","deepseek-v4-pro"]}]}]})"));
+  const auto selected = models::selectProfileDefault(response, "default", "ekko-agent");
+  if (selected.result != models::Result::Ok)
+    std::fprintf(stderr, "Official 0.8.22 per-model configuration rejected: model_result=%u\n", unsigned(selected.result));
+  assert(selected.result == models::Result::Ok);
+  assert(std::string(selected.provider.data()) == "custom:deepseek1017");
+  assert(std::string(selected.model.data()) == "deepseek-flash");
+  assert(std::string(selected.apiMode.data()) == "anthropic_messages");
+}
+
+void perModelModePriorityAndValidation() {
+  for (const char* mode : {"chat_completions", "codex_responses", "anthropic_messages"}) {
+    auto response = fixture(); JsonObject group = response["profiles"][0]["groups"][1].as<JsonObject>();
+    group["api_mode"] = "codex_app_server";  // Map, not this scalar, is authoritative.
+    group["api_mode_by_model"]["vendor/Default-Exact"] = mode;
+    auto selected = models::selectProfileDefault(response, "default", "ekko-agent");
+    assert(selected.result == models::Result::Ok && std::string(selected.apiMode.data()) == mode);
+    group.remove("api_mode");
+    assert(models::selectProfileDefault(response, "default", "ekko-agent").result == models::Result::Ok);
+    group["model_meta"]["vendor/Default-Exact"]["disabled"] = true;
+    group["api_mode_by_model"]["vendor/First-Exact"] = "codex_responses";
+    selected = models::selectProfileDefault(response, "default", "ekko-agent");
+    assert(selected.result == models::Result::Ok && selected.origin == models::Origin::ProviderFallback);
+    assert(std::string(selected.model.data()) == "vendor/First-Exact" && std::string(selected.apiMode.data()) == "codex_responses");
+    group["model_meta"]["vendor/First-Exact"]["hidden"] = true;
+    assertEmpty(models::selectProfileDefault(response, "default", "ekko-agent"), models::Result::NotAvailable);
+  }
+  for (int missing = 0; missing != 4; ++missing) {
+    auto response = fixture(); JsonObject group = response["profiles"][0]["groups"][1].as<JsonObject>();
+    auto map = group["api_mode_by_model"].to<JsonObject>();
+    if (missing == 0) map["vendor/Default-Exact"] = nullptr;
+    if (missing == 1) map["other-model"] = "chat_completions";
+    if (missing == 2) map["vendor/Default-Exact"] = "";
+    if (missing == 3) map["vendor/Default-Exact"] = "　";
+    // A valid scalar, another model or another Profile must not override the map.
+    assertEmpty(models::selectProfileDefault(response, "default", "ekko-agent"), models::Result::NeedsConfiguration);
+  }
+  for (const char* invalid : {"null", "false", "42", "[]", "\"chat_completions\"",
+       R"({"vendor/Default-Exact":true})", R"({"vendor/Default-Exact":{}})",
+       R"({"vendor/Default-Exact":[]})", R"({"vendor/Default-Exact":"chat_completions\u0000evil"})",
+       R"({"vendor/Default-Exact\u0000evil":"chat_completions"})", R"({"":"chat_completions"})"}) {
+    auto response = fixture(); JsonDocument map; assert(!deserializeJson(map, invalid));
+    response["profiles"][0]["groups"][1]["api_mode_by_model"].set(map.as<JsonVariantConst>());
+    assertEmpty(models::selectProfileDefault(response, "default", "ekko-agent"), models::Result::InvalidResponse);
+  }
+  for (size_t size : {models::kModelMaxBytes, models::kModelMaxBytes + 1}) {
+    auto response = fixture(); JsonObject group = response["profiles"][0]["groups"][1].as<JsonObject>();
+    const std::string model(size, 'm');
+    group["models"][0] = model; response["profiles"][0]["default"] = model;
+    group["api_mode_by_model"][model] = "anthropic_messages";
+    const auto selected = models::selectProfileDefault(response, "default", "ekko-agent");
+    if (size == models::kModelMaxBytes) assert(selected.result == models::Result::Ok);
+    else assertEmpty(selected, models::Result::InvalidResponse);
+  }
+  for (size_t size : {models::kApiModeMaxBytes, models::kApiModeMaxBytes + 1}) {
+    auto response = fixture();
+    response["profiles"][0]["groups"][1]["api_mode_by_model"]["vendor/Default-Exact"] = std::string(size, 'x');
+    assertEmpty(models::selectProfileDefault(response, "default", "ekko-agent"),
+        size == models::kApiModeMaxBytes ? models::Result::UnsupportedApiMode : models::Result::InvalidResponse);
+  }
+}
+
 void invalidResponsesAndJsonNul() {
   for (const char* invalid : {R"(null)", R"([])", R"({"groups":[{"provider":"p","models":[{"id":"m","label":"m"}]}],"default":"m"})", R"({"profiles":{}})"}) {
     JsonDocument response; assert(!deserializeJson(response, invalid));
     assertEmpty(models::selectProfileDefault(response, "default", "codex"), models::Result::InvalidResponse);
   }
   for (int field = 0; field < 9; ++field) {
-    auto response = fixture(); auto profile = response["profiles"][0]; auto group = profile["groups"][1];
+    auto response = fixture(); JsonObject profile = response["profiles"][0].as<JsonObject>(); JsonObject group = profile["groups"][1].as<JsonObject>();
     switch (field) {
       case 0: profile["default"] = 42; break;
       case 1: profile["default_provider"] = false; break;
@@ -193,9 +263,10 @@ void filteredInputNeverCopiesCredentials() {
   JsonDocument source = fixture();
   source["api_key"] = "secret-top-level"; source["key"] = "secret-top-key";
   source["profiles"][0]["key"] = "secret-profile-key";
-  auto group = source["profiles"][0]["groups"][1];
+  JsonObject group = source["profiles"][0]["groups"][1].as<JsonObject>();
   group["api_key"] = "secret-group-api-key"; group["key"] = "secret-group-key";
   group["base_url"] = "https://secret-url.invalid/";
+  group["api_mode_by_model"]["vendor/Default-Exact"] = "anthropic_messages";
   group["model_meta"]["vendor/Default-Exact"]["api_key"] = "secret-meta-key";
   source["allProviders"][0]["api_key"] = "secret-catalog-key";
   JsonDocument filter; assert(models::buildAvailableModelsFilter(filter));
@@ -207,7 +278,8 @@ void filteredInputNeverCopiesCredentials() {
   assert(filtered["api_key"].isUnbound() && filtered["groups"].isUnbound() && filtered["allProviders"].isUnbound());
   assert(filtered["profiles"][0]["groups"][1]["api_key"].isUnbound());
   auto selected = models::selectProfileDefault(filtered, "default", "codex");
-  assert(selected.result == models::Result::Ok);
+  assert(selected.result == models::Result::Ok && std::string(selected.apiMode.data()) == "anthropic_messages");
+  assert(std::string(filtered["profiles"][0]["groups"][1]["api_mode_by_model"]["vendor/Default-Exact"].as<const char*>()) == "anthropic_messages");
   group["model_meta"]["vendor/Default-Exact"]["disabled"] = true;
   group["model_meta"]["vendor/First-Exact"]["hidden"] = true;
   full.clear();serializeJson(source, full);
@@ -240,6 +312,8 @@ int main() {
   profileScopeAndOwnership();
   officialFallbackAndVisibility();
   explicitApiModesAndProviderPolicy();
+  studio0822PerModelApiModes();
+  perModelModePriorityAndValidation();
   invalidResponsesAndJsonNul();
   exactBoundsAndNoTruncation();
   filteredInputNeverCopiesCredentials();

@@ -5,12 +5,12 @@
 #include <cstddef>
 #include <cstring>
 
-// Official Studio 0.7.36 / 1242ac6:
+// Official Studio 0.7.36 / 1242ac6 scalar modes and 0.8.22 per-model modes:
 // packages/client/src/api/hermes/system.ts: AvailableModelsResponse.
 // packages/client/src/components/hermes/chat/ChatPanel.vue:
 //   getDefaultModelForProfile / getSelectableModelGroupsForProfile.
 // packages/server/src/modules/hermes/controllers/models.ts: getAvailable.
-// This is the device's fresh Profile-default selection, not the Web UI's
+// This is the device's fresh Profile-compatible selection, not the Web UI's
 // optional localStorage selection. No config.yaml, provider key or URL is read.
 namespace official_studio_models {
 
@@ -24,7 +24,7 @@ enum class Result : uint8_t {
   OutOfMemory
 };
 
-enum class Origin : uint8_t { None, ProfileDefault, ProviderFallback, FirstAvailable };
+enum class Origin : uint8_t { None, ProfileDefault, ProviderFallback, FirstAvailable, CompatibleDefault };
 
 // Owned identity: independent of the HTTP JsonDocument's lifetime; no pointer
 // into it and no credential or base URL fields. Bounds count UTF-8 bytes.
@@ -71,10 +71,23 @@ inline bool validMetadata(JsonVariantConst metadata) {
   return true;
 }
 
+inline bool validApiModeMap(JsonVariantConst modes) {
+  if (modes.isUnbound()) return true;
+  if (!modes.is<JsonObjectConst>()) return false;
+  for (JsonPairConst member : modes.as<JsonObjectConst>()) {
+    const JsonString model = member.key();
+    if (model.size() != std::strlen(model.c_str()) || blank(model.c_str()) ||
+        model.size() > kModelMaxBytes) return false;
+    const JsonVariantConst value = member.value();
+    if (!value.isNull() && (!plainString(value) || value.as<JsonString>().size() > kApiModeMaxBytes)) return false;
+  }
+  return true;
+}
+
 inline bool validGroup(JsonVariantConst group) {
   if (!group.is<JsonObjectConst>() || !plainString(group["provider"]) ||
       blank(group["provider"].as<const char*>()) || !group["models"].is<JsonArrayConst>() ||
-      !validMetadata(group["model_meta"])) return false;
+      !validMetadata(group["model_meta"]) || !validApiModeMap(group["api_mode_by_model"])) return false;
   const auto apiMode = group["api_mode"];
   if (!apiMode.isUnbound() && !apiMode.isNull() && !plainString(apiMode)) return false;
   for (JsonVariantConst model : group["models"].as<JsonArrayConst>()) {
@@ -180,10 +193,15 @@ inline Selection selectProfileDefault(const JsonDocument& response, const char* 
   const bool selectedDefault = selectedModel != nullptr;
   if (!selectedModel) selectedModel = firstSelectable(chosen);
   if (!selectedModel) return failure(Result::NotAvailable);
-  if (chosen["api_mode"].isUnbound() || chosen["api_mode"].isNull() || blank(chosen["api_mode"].as<const char*>())) {
+  // Match official providerModelApiMode: when the map exists, its exact model
+  // entry takes priority, including null/missing. Never overwrite that with a
+  // group-level default or infer a protocol from a provider/base URL.
+  const JsonVariantConst modes = chosen["api_mode_by_model"];
+  const JsonVariantConst apiMode = modes.isUnbound() ? chosen["api_mode"] : modes[selectedModel];
+  if (apiMode.isUnbound() || apiMode.isNull() || blank(apiMode.as<const char*>())) {
     return failure(Result::NeedsConfiguration);  // Do not guess from provider/URL.
   }
-  const char* selectedApiMode = chosen["api_mode"].as<const char*>();
+  const char* selectedApiMode = apiMode.as<const char*>();
   if (!official_studio::validApiMode(selectedApiMode)) return failure(Result::UnsupportedApiMode);
   Selection out;
   if (!copyIdentity(out.provider, chosen["provider"].as<const char*>()) ||
@@ -210,6 +228,7 @@ inline bool buildAvailableModelsFilter(JsonDocument& filter) {
   auto group = profile["groups"][0].to<JsonObject>();
   group["provider"] = true;
   group["api_mode"] = true;
+  group["api_mode_by_model"]["*"] = true;
   group["models"][0] = true;
   group["model_meta"]["*"]["disabled"] = true;
   group["model_meta"]["*"]["hidden"] = true;

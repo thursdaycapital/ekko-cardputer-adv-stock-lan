@@ -1,4 +1,5 @@
 #include "ChatRenderer.h"
+#include "DeviceHomeRenderer.h"
 #include <cassert>
 #include <iostream>
 #include <string>
@@ -80,9 +81,100 @@ static void cleanMessageDisplay() {
       native_chat_render::messageLines(frame, *model.messageAt(1)));
 }
 
+static void homeAndRecordingPresentation() {
+  NativeChatModel model;
+  NativeAgentSelection selection;
+  assert(model.activate("ekko-agent", "default", 1) == NativeChatResult::Ok);
+  for (size_t i = 0; i < kNativeAgentCount; ++i) {
+    selection.browse = i;
+    CardputerPresentation view(selection, model);
+    view.online = true; view.status = "就绪";
+    M5Canvas home;
+    drawDeviceHome(home, view);
+    assert(home.contains(kNativeAgents[i].name));
+    assert(home.contains("左右选择 OK进入 Tab模式") && home.contains("Studio模型"));
+    assert(home.contains("按 OK 进入聊天") && home.imageRows == 44);
+    for (size_t j = 0; j < home.stringCount; ++j)
+      assert(home.strings[j].fontPixels == 12 && home.strings[j].textScale == 1);
+  }
+  CardputerPresentation opening(selection, model);
+  opening.waiting = true; opening.status = "读取记录";
+  opening.message = "正在打开对话";
+  { M5Canvas home; drawDeviceHome(home, opening);
+    assert(home.contains("正在打开对话") && !home.contains("按 OK 进入聊天")); }
+  CardputerPresentation native(selection, model);
+  native.modeLabel = "原生CLI";
+  { M5Canvas home; drawDeviceHome(home, native);
+    assert(home.contains("原生CLI") && !home.contains("Studio模型")); }
+  native.exiting = true;
+  { M5Canvas home; drawDeviceHome(home, native);
+    assert(home.contains("原生CLI") && home.contains("正在返回原厂菜单")); }
+  native.exiting = false; native.modeLabel = nullptr;
+  { M5Canvas home; drawDeviceHome(home, native); assert(home.contains("Studio模型")); }
+
+  model.draft()->set("保留草稿");
+  NativeChatRenderOptions options;
+  options.recording = true; options.recordingElapsedMs = 1200; options.status = "正在录音";
+  { M5Canvas frame; nativeDrawChat(frame, model, options);
+    assert(frame.contains("1.2 / 5.0 秒") && frame.contains("松开发送 · Esc取消"));
+    assert(!frame.contains("保留草稿"));
+    for (size_t i = 0; i < frame.stringCount; ++i)
+      assert(std::strcmp(frame.strings[i].text, "发送") != 0);
+    assert(std::strcmp(model.draft()->data(), "保留草稿") == 0); }
+  options.recordingElapsedMs = 9000;
+  { M5Canvas frame; nativeDrawChat(frame, model, options);
+    assert(frame.contains("5.0 / 5.0 秒") && !frame.contains("9.0")); }
+  options.recordingElapsedMs = 0; options.recordingLimitMs = 0;
+  { M5Canvas frame; nativeDrawChat(frame, model, options);
+    assert(frame.contains("0.0 / 5.0 秒")); }
+  options.recording = false;
+  { M5Canvas frame; nativeDrawChat(frame, model, options); assert(frame.contains("保留草稿")); }
+}
+
+static void uncertainSendPresentation() {
+  NativeChatModel model;
+  assert(model.activate("ekko-agent", "default", 1) == NativeChatResult::Ok);
+  model.draft()->set("尚未确认的草稿");
+  NativeChatRenderOptions options;
+  options.sendUncertain = true;
+  options.notice = "发送结果未知，草稿保留";
+  { M5Canvas frame; const auto metrics = nativeDrawChat(frame, model, options);
+    assert(frame.contains("Fn+R 核对发送结果"));
+    assert(frame.contains("尚未确认的草稿") && !frame.contains("G0/Fn+空格说话"));
+    assert(!frame.contains("Ctrl+OK 确认已查看记录"));
+    assert(metrics.visibleLines == nativeChatVisibleLines(false, true, false, true));
+    assert(metrics.visibleLines < nativeChatVisibleLines(false, true));
+    for (size_t i = 0; i < frame.stringCount; ++i)
+      if (!std::strcmp(frame.strings[i].text, "发送")) assert(frame.strings[i].background == native_chat_render::quiet); }
+  options.sendReviewable = true;
+  { M5Canvas frame; nativeDrawChat(frame, model, options);
+    assert(frame.contains("Ctrl+OK 确认已查看记录") && !frame.contains("Fn+R 核对发送结果"));
+    assert(frame.contains("尚未确认的草稿")); }
+  options.historyMode = true;
+  { M5Canvas frame; const auto metrics = nativeDrawChat(frame, model, options);
+    assert(frame.contains("Ctrl+OK 确认已查看记录") && frame.contains("Tab输入"));
+    assert(metrics.visibleLines == nativeChatVisibleLines(true, true, false, true)); }
+  options.historyMode = false;
+  for (const char* text = "nihao"; *text; ++text) {
+    NativeChatKey key; key.kind = NativeChatKeyKind::Insert; key.character = *text;
+    assert(model.inputMethod()->handle(key, *model.draft()).handled);
+  }
+  { M5Canvas frame; const auto metrics = nativeDrawChat(frame, model, options);
+    assert(frame.contains("Ctrl+OK 确认已查看记录") && frame.contains("nihao"));
+    assert(metrics.visibleLines == nativeChatVisibleLines(false, true, true, true));
+    assert(metrics.visibleLines == 1); }
+  assert(std::strcmp(model.draft()->data(), "尚未确认的草稿") == 0);
+  model.inputMethod()->reset(); options.sendUncertain = false;
+  model.draft()->clear();
+  { M5Canvas frame; nativeDrawChat(frame, model, options);
+    assert(frame.contains("G0/Fn+空格说话 5秒") && !frame.contains("Ctrl+OK 确认已查看记录")); }
+}
+
 int main() {
   nativeTypographyAndStatusRegions();
   cleanMessageDisplay();
+  homeAndRecordingPresentation();
+  uncertainSendPresentation();
   NativeChatModel model;
   assert(model.activate("codex", "default", 1) == NativeChatResult::Ok);
   const NativeChatRoute route("codex", "default", 1, "native-session");
@@ -93,13 +185,13 @@ int main() {
     const NativeChatRenderMetrics result = nativeDrawChat(frame, model, options);
     assert(result.totalLines == 0 && result.firstVisibleMessage == 0 && frame.imageRows == 18);
     assert(frame.contains("等待会话") && frame.contains("输入消息"));
-    assert(!frame.contains("语音") && frame.contains("发送") && frame.contains("Fn+空格说话"));
+    assert(!frame.contains("语音") && frame.contains("发送") && frame.contains("G0/Fn+空格说话 5秒"));
     for (size_t i = 0; i < frame.stringCount; ++i)
       if (std::strcmp(frame.strings[i].text, "发送") == 0) assert(frame.strings[i].y == 118);
     assert(frame.fontPixels == 12); // Renderer keeps the native 12px measurement font.
     assert(!frame.contains("Fn+SPACE / G0") && !frame.contains("NATIVE / CHAT"));
     assert(frame.contains("中文 Ctrl+Space"));
-    assert(frame.contains("Tab历史"));
+    assert(frame.contains("Fn+上下"));
     assert(result.visibleLines == nativeChatVisibleLines(false, false));
   }
   assert(model.beginMessage(route, "turn", "user", NativeChatRole::User, 0, 0, false) == NativeChatResult::Ok);
@@ -112,7 +204,7 @@ int main() {
     const NativeChatRenderMetrics result = nativeDrawChat(frame, model, options);
     assert(frame.contains("用户问题") && frame.contains("真实中文回复") && frame.contains("hello world"));
     assert(!frame.contains("语音") && frame.contains("发送") && !frame.contains("Fn+SPACE / G0"));
-    assert(!frame.contains("Fn+空格说话"));
+    assert(!frame.contains("G0/Fn+空格说话"));
     assert(result.totalLines == 2 && result.firstVisibleMessage == 0 && result.lastVisibleMessage == 1);
   }
   options.notice = "发送失败，草稿保留"; options.sending = true;
@@ -153,7 +245,7 @@ int main() {
     M5Canvas frame; const auto result = nativeDrawChat(frame, model, options);
     assert(frame.contains("nihao") && frame.contains("你好") && frame.contains("中文 Ctrl+Space"));
     assert(frame.contains("发送") && !frame.contains("语音") && !frame.contains("Fn+SPACE"));
-    assert(!frame.contains("Fn+空格说话"));
+    assert(!frame.contains("G0/Fn+空格说话"));
     assert(result.visibleLines == nativeChatVisibleLines(false, false, true));
     assert(result.visibleLines < nativeChatVisibleLines(false, false));
     bool candidateSeen = false, sendSeen = false;
@@ -223,6 +315,6 @@ int main() {
   assert(model.endHistory(route, "paged-history", true, true) == NativeChatResult::Ok);
   { M5Canvas frame; const NativeChatRenderMetrics result = nativeDrawChat(frame, model, options);
     assert(result.totalLines == 3 && result.firstVisibleMessage == 0 && result.lastVisibleMessage == 0);
-    assert(frame.contains("更早消息") && frame.contains("更新消息") && frame.contains("Tab历史")); }
+    assert(frame.contains("更早消息") && frame.contains("更新消息") && frame.contains("Fn+上下")); }
   std::cout << "Chat renderer: bounded drawing/real text/composer/notice/cursor/visible-window metrics passed (canvas spy)\n";
 }

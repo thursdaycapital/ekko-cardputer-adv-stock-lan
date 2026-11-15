@@ -3,6 +3,8 @@
 #include "RenderPolicy.h"
 #include "RenderColors.h"
 #include "ChatRenderer.h"
+#include "DeviceHomeRenderer.h"
+#include "DeviceGestureMailbox.h"
 #include "EkkoPixelFont12.h"
 #include "AudioStreamQueue.h"
 #include "KeyClick.h"
@@ -19,7 +21,10 @@
 namespace {
 NativeNavigationInput navigation;
 NativeChatKeyboard chatKeyboard;
+DeviceGestureMailbox gestureMailbox;
 bool conversationMode = false, inputModeChanged = false, chatHistoryMode = false;
+bool chatSendUncertain = false;
+bool bootPressed = false, voiceChordPressed = false;
 NativeChatRenderMetrics chatMetrics;
 uint32_t audioRate = 24000;
 int16_t microphone[256];
@@ -131,19 +136,6 @@ bool ensureRenderCanvas() {
   sampleRenderMemory();
   return true;
 }
-const char* selectionMessage(const NativeAgentSelection& selection, const String& error, const String& notice) {
-  return selection.pending ? "正在读取配置" :
-      error == "factory_unavailable" ? "原厂固件不可用" :
-      error == "standard_agent_unavailable" ? (notice.length() ? notice.c_str() : "请检查智能体配置") :
-      error == "standard_session_storage_failed" ? "会话存储不可用" :
-      error == "standard_binding_invalid" ? "连接配置不完整" :
-      error == "native_agent_ack_timeout" ? "后台不支持或确认超时" :
-      error == "native_agent_rejected" ? "后台拒绝此智能体" :
-      error == "send_failed" ? "选择发送失败" :
-      error.length() ? "后台未确认选择" :
-      selection.browse != selection.active ? "方向键选择" :
-      selection.confirmed ? "已选择" : "请在设备网页登录";
-}
 }
 
 bool cardputerBegin() {
@@ -218,10 +210,11 @@ void cardputerPoll() {
     return M5Cardputer.Keyboard.isKeyPressed(key);
   }, M5Cardputer.Keyboard.keysState().enter);
   auto& state = M5Cardputer.Keyboard.keysState();
-  if (conversationMode) {
-    keys.left = keys.right = keys.up = keys.down = keys.enter = false;
-    keys.back = keys.back && !state.fn;
-  }
+  keys.mode = state.tab && !state.fn && !state.ctrl && !state.alt && !state.opt;
+  bootPressed = M5Cardputer.BtnA.isPressed();
+  voiceChordPressed = state.fn && state.space;
+  gestureMailbox.update(millis(), bootPressed, voiceChordPressed);
+  keys = nativeNavigationForPage(keys, conversationMode, state.fn);
   if (inputModeChanged) navigation.prime(keys); else navigation.update(keys);
   std::array<NativeChatPhysicalKey, 56> physical{};
   for (const auto& point : M5Cardputer.Keyboard.keyList()) {
@@ -231,7 +224,7 @@ void cardputerPoll() {
     key.base = static_cast<uint8_t>(M5Cardputer.Keyboard.getKeyValue(point).value_first);
     key.character = M5Cardputer.Keyboard.getKey(point);
   }
-  const bool voiceHeld = (state.fn && state.space) || M5Cardputer.BtnA.isPressed();
+  const bool voiceHeld = bootPressed || voiceChordPressed;
   keyClickInput.update(physical, millis(), []() { return esp_random(); },
       keyClickEnabled && !keyClickBlocked && !voiceHeld && !audioStreamStarted &&
       !capturePending && !continuousCapture && !M5Cardputer.Mic.isRecording());
@@ -267,7 +260,7 @@ size_t cardputerChatContentLines(const NativeChatModel& chat) {
 }
 size_t cardputerChatMaxScroll(const NativeChatModel& chat, bool hasNotice) {
   const size_t total = cardputerChatContentLines(chat);
-  const size_t visible = nativeChatVisibleLines(chatHistoryMode, hasNotice, chat.inputMethod() && chat.inputMethod()->composing());
+  const size_t visible = nativeChatVisibleLines(chatHistoryMode, hasNotice, chat.inputMethod() && chat.inputMethod()->composing(), chatSendUncertain);
   return total > visible ? total - visible : 0;
 }
 size_t cardputerChatMessageScroll(const NativeChatModel& chat, const char* id, bool atEnd, bool hasNotice) {
@@ -282,16 +275,16 @@ size_t cardputerChatMessageScroll(const NativeChatModel& chat, const char* id, b
     total += lines;
   }
   if (chat.context() && chat.context()->history_has_newer) ++total;
-  const size_t visible = nativeChatVisibleLines(chatHistoryMode, hasNotice, chat.inputMethod() && chat.inputMethod()->composing());
+  const size_t visible = nativeChatVisibleLines(chatHistoryMode, hasNotice, chat.inputMethod() && chat.inputMethod()->composing(), chatSendUncertain);
   const size_t maximum = total > visible ? total - visible : 0;
   const size_t first = atEnd ? (targetEnd > visible ? targetEnd - visible : 0) : targetStart;
   return maximum > first ? maximum - first : 0;
 }
-bool cardputerTalkPressed() {
-  cardputerPoll();
-  const auto& keys = M5Cardputer.Keyboard.keysState();
-  return (keys.fn && keys.space) || M5Cardputer.BtnA.isPressed();
-}
+bool cardputerBootPressed() { return bootPressed; }
+bool cardputerVoiceChordPressed() { return voiceChordPressed; }
+bool cardputerTalkPressed() { return bootPressed || voiceChordPressed; }
+uint8_t cardputerGesture() { return gestureMailbox.pop(); }
+void cardputerSuppressGestureUntilReleased() { gestureMailbox.suppressUntilReleased(); }
 int cardputerNavigation() { return navigation.pop(); }
 uint32_t cardputerNavigationCount() { return navigation.count(); }
 NativeNavigationStats cardputerNavigationStats() { return navigation.stats(); }
@@ -305,98 +298,59 @@ CardputerRenderStats cardputerRenderStats() {
   return renderStats;
 }
 
-void cardputerDraw(const uint8_t* bitmap, bool interaction,
-                   const NativeAgentSelection& selection, const NativeConversationView& view, const String& title,
-                   const String& hint, const String& address, bool socketReady,
-                   const String& selectionError, const NativeChatModel& chat,
-                   const char* chatStatus, const String& chatNotice, size_t bottomOffset,
-                   bool sending, bool historyMode, uint32_t) {
+void cardputerDraw(const CardputerPresentation& view) {
+  chatSendUncertain = view.sendUncertain;
   ++renderStats.draw_calls;
   if (!ensureRenderCanvas()) return;
+  const auto& selection = view.selection;
+  const auto& chat = view.chat;
   if (selection.active >= kNativeAgentCount || selection.browse >= kNativeAgentCount) {
     renderStats.last_error = "invalid_agent_index";
     showStableRenderFailure("显示状态异常");
     return;
   }
-  const char* message = view.waiting() ? (socketReady ? "正在打开对话" : "等待后台连接") :
-      (!view.conversation() && socketReady &&
-       nativeInteractionVisible(interaction, selection, selectionError.length() != 0)) ?
-          "OK 查看对话" : selectionMessage(selection, selectionError, chatNotice);
   NativeRenderInput input;
-  input.conversation = view.conversation();
-  input.interaction = false; input.online = socketReady;
+  input.conversation = view.conversation;
+  input.online = view.online;
   input.active = selection.active; input.browse = selection.browse;
-  input.message = message; input.title = title.c_str(); input.hint = hint.c_str();
-  input.address = address.c_str(); input.error = selectionError.c_str(); input.monochrome = bitmap;
-  if (view.conversation()) {
+  input.message = view.message; input.address = view.address;
+  input.mode_label = view.modeLabel;
+  input.hint = view.waiting ? "opening" : "";
+  input.chat_status = view.status; input.chat_notice = view.notice;
+  input.recording = view.recording;
+  input.send_uncertain = view.sendUncertain; input.send_reviewable = view.sendReviewable;
+  input.recording_elapsed_tenths = view.recording ? view.recordingElapsedMs / 100 : 0;
+  input.recording_limit_ms = view.recordingLimitMs;
+  if (view.conversation) {
     input.chat_revision = chat.revision(); input.editor_revision = chat.draft() ? chat.draft()->revision() : 0;
-    input.chat_scroll = bottomOffset; input.chat_status = chatStatus; input.chat_notice = chatNotice.c_str();
-    input.chat_history_mode = historyMode;
+    input.chat_scroll = view.bottomOffset;
+    input.chat_history_mode = view.historyMode;
     input.input_method_revision = chat.inputMethod() ? chat.inputMethod()->revision() : 0;
   }
   const uint32_t now = millis();
   const auto decision = renderPolicy.consider(input, now);
-  if (decision == NativeRenderDecision::SameState) {
-    ++renderStats.skipped_same_state;
-    return;
-  }
-  if (decision == NativeRenderDecision::Throttled) {
-    ++renderStats.skipped_throttled;
-    return;
-  }
-
+  if (decision == NativeRenderDecision::SameState) { ++renderStats.skipped_same_state; return; }
+  if (decision == NativeRenderDecision::Throttled) { ++renderStats.skipped_throttled; return; }
   const uint32_t started = micros();
   auto& frame = renderCanvas();
-  // No source framebuffer mutation is permitted while a prior DMA uses it.
+  // A single unchanged sprite owns the entire LCD transfer. Never clear the
+  // physical panel while painting the next frame in RAM.
   M5Cardputer.Display.waitDMA();
-  frame.fillScreen(ink); // RAM only: physical LCD never sees a cleared frame.
-  frame.setTextColor(paper, ink);
-  frame.setFont(&ekko_pixel_font::kFont);
-  frame.setTextSize(1);
-  frame.drawString("EKKO STUDIO", 9, 4);
-  frame.setTextColor(socketReady ? amber : muted, ink);
-  frame.drawRightString(socketReady ? "原生 · 已连接" : "原生 · 待连接", 231, 4);
-  frame.drawFastHLine(8, 24, 224, muted);
-  if (view.conversation()) {
+  if (view.conversation) {
     NativeChatRenderOptions options;
-    options.agentIndex = selection.active; options.status = chatStatus; options.notice = chatNotice.c_str();
-    options.bottomOffsetLines = std::min<size_t>(bottomOffset, UINT16_MAX);
-    options.online = socketReady; options.sending = sending;
-    options.historyMode = historyMode;
+    options.agentIndex = selection.active; options.status = view.status; options.notice = view.notice;
+    options.bottomOffsetLines = std::min<size_t>(view.bottomOffset, UINT16_MAX);
+    options.online = view.online; options.sending = view.sending; options.historyMode = view.historyMode;
+    options.recording = view.recording; options.recordingElapsedMs = view.recordingElapsedMs;
+    options.sendUncertain = view.sendUncertain; options.sendReviewable = view.sendReviewable;
+    options.recordingLimitMs = view.recordingLimitMs;
     chatMetrics = nativeDrawChat(frame, chat, options);
   } else {
-    const auto& agent = kNativeAgents[selection.browse];
     const auto* avatar = nativeAgentLogo(selection.browse);
-    frame.fillRect(9, 37, 44, 44, paper);
-    if (avatar && avatar->pixels && avatar->width <= 44 && avatar->height <= 44) {
-      frame.pushImage(9, 37, avatar->width, avatar->height, nativeRgb565Pixels(avatar->pixels));
-    } else {
-      // Missing assets are an error, never an invented letter avatar.
+    if (!avatar || !avatar->pixels || avatar->width != 44 || avatar->height != 44)
       renderStats.last_error = "avatar_asset_missing";
-      frame.setFont(&ekko_pixel_font::kFont);
-      frame.setTextColor(ink, paper);
-      frame.drawString("缺图", 18, 53);
-    }
-    frame.setTextColor(paper, ink);
-    frame.setFont(&ekko_pixel_font::kFont);
-    native_chat_render::drawClipped(frame, agent.name, 63, 37, 168);
-    frame.setTextColor(amber, ink);
-    native_chat_render::drawClipped(frame, message, 63, 61, 168);
-    frame.setTextColor(muted, ink);
-    frame.drawString(String(selection.browse + 1) + " / " + kNativeAgentCount, 63, 80);
-    for (size_t i = 0; i < kNativeAgentCount; ++i)
-      frame.fillRect(9 + i * 14, 96, 10, 3, i == selection.browse ? amber : muted);
-    // Dynamic text uses the same complete Chinese 12px font as chat.
-    frame.setFont(&ekko_pixel_font::kFont);
-    frame.setTextColor(paper, ink);
-    const String endpoint = address.length() ? address : title + " " + hint;
-    native_chat_render::drawClipped(frame, endpoint.c_str(), 9, 103, 222);
-    frame.setTextColor(muted, ink);
-    frame.setFont(&ekko_pixel_font::kFont);
-    frame.drawString("方向选择  OK对话  Esc原厂", 9, 120);
+    drawDeviceHome(frame, view);
   }
-  // Exactly one completed physical transfer per changed frame. This avoids
-  // clear-and-paint flicker; it does not claim hardware VSYNC/tear-free scanout.
   frame.pushSprite(&M5Cardputer.Display, 0, 0);
   M5Cardputer.Display.waitDMA();
   ++renderStats.frame_count;

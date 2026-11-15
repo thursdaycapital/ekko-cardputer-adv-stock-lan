@@ -89,6 +89,9 @@ struct NativeChatContext {
   bool used = false;
   bool history_has_more = false;
   bool history_has_newer = false;
+  // Belongs to this exact account/machine/mode binding, Profile and Agent.
+  // Even an empty draft can represent a voice send with an unknown outcome.
+  bool send_unknown = false;
 };
 
 // Native session history is authoritative. This is a small reloadable cache:
@@ -133,7 +136,7 @@ class NativeChatModel {
       if (index < 0) {
         uint32_t oldestAge = 0;
         for (size_t i = 0; i < contexts_.size(); ++i) {
-          if (!contexts_[i].draft.empty() || contexts_[i].input_method.composing()) continue;
+          if (!contexts_[i].draft.empty() || contexts_[i].input_method.composing() || contexts_[i].send_unknown) continue;
           const uint32_t age = clock_ - contexts_[i].last_used;
           if (index < 0 || age > oldestAge) { index = static_cast<int>(i); oldestAge = age; }
         }
@@ -149,6 +152,7 @@ class NativeChatModel {
       context.session_id[0] = 0;
       context.agent_index = static_cast<uint8_t>(agentIndex);
       context.used = true; context.history_has_more = context.history_has_newer = false;
+      context.send_unknown = false;
     }
     if (active_ != index || version_ != version) {
       resetHistoryRequest(); session_confirmed_ = false; ++revision_;
@@ -174,6 +178,16 @@ class NativeChatModel {
   NativeChineseInput* inputMethod() { return active_ < 0 ? nullptr : &contexts_[active_].input_method; }
   const NativeChineseInput* inputMethod() const { return active_ < 0 ? nullptr : &contexts_[active_].input_method; }
   const NativeChatContext* context() const { return active_ < 0 ? nullptr : &contexts_[active_]; }
+  // The caller has already correlated the observation/user decision with the
+  // current context. No writable context pointer or other context is exposed.
+  // Hiding/disconnecting/reading history never settles an ambiguous send.
+  bool setSendUnknown(bool unknown) {
+    if(active_<0)return false;
+    if(contexts_[active_].send_unknown!=unknown) {
+      contexts_[active_].send_unknown=unknown;++revision_;touch();
+    }
+    return true;
+  }
   const char* agentId() const { return active_ < 0 ? "" : kNativeAgents[contexts_[active_].agent_index].id; }
 
   // Root creates a unique requestId before sending mcu.chat.history. Late

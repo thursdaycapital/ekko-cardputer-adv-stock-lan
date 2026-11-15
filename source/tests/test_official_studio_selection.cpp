@@ -38,8 +38,8 @@ struct Fixture final:Transport {
     return reply.complete;
   }
 };
-Input input(const char* agent="hermes",const char* profile="default") {
-  Input value;assert(makeInput(value,"https://studio.example/base/","fixture.jwt.signature",profile,agent,27)==Result::Ok);return value;
+Input input(const char* agent="hermes",const char* profile="default",Preference preference=Preference::Automatic) {
+  Input value;assert(makeInput(value,"https://studio.example/base/","fixture.jwt.signature",profile,agent,27,preference)==Result::Ok);return value;
 }
 std::string models(const std::string& provider="my-provider",const std::string& model="my-model",const std::string& profile="default") {
   return "{\"profiles\":[{\"profile\":\""+profile+"\",\"default\":\""+model+"\",\"default_provider\":\""+provider+
@@ -48,6 +48,7 @@ std::string models(const std::string& provider="my-provider",const std::string& 
       "\":{\"disabled\":false,\"hidden\":false}}}]}]}";
 }
 const char* emptyModels="{\"profiles\":[{\"profile\":\"default\",\"default\":\"\",\"default_provider\":\"\",\"groups\":[]}]}";
+std::string perModelResponse(const std::string& map,const std::string& scalar);
 Reply account(){return Reply(Stage::Account,"{\"user\":{\"id\":17,\"username\":\"tester\",\"role\":\"user\",\"avatar\":\"ignored\"}}");}
 Reply tools(const char* agent,bool installed=true){return Reply(Stage::Installed,std::string("{\"tools\":[{\"id\":\"")+agent+"\",\"installed\":"+(installed?"true":"false")+",\"path\":\"ignored\"}]}");}
 Reply catalog(const char* agent,const char* status="ready") {
@@ -65,6 +66,7 @@ void allRoutes() {
       if(output.result!=Result::Ok)std::fprintf(stderr,"Agent %s failed result=%u stage=%u\n",route.id,unsigned(output.result),unsigned(output.stage));
       assert(output.result==Result::Ok&&output.stage==Stage::Complete&&fixture.call==fixture.replies.size());
       assert(output.epoch==27&&std::strcmp(output.accountId.data(),"17")==0);
+      assert(output.preference==Preference::Automatic);
       assert(output.jsonPeakBytes>0&&output.jsonPeakBytes<=kJsonMemoryBytes);
       assert(std::strcmp(output.agentId.data(),route.id)==0&&std::strcmp(output.profile.data(),"default")==0);
       assert(fixture.paths.front()=="/api/auth/me");
@@ -133,6 +135,384 @@ void scopedAndNative() {
     const auto output=resolve(input("claude-code"),fixture);
     assert(output.result==Result::Ok&&output.mode==official_studio::Mode::Global);
   }
+}
+void explicitStudioStaysScoped() {
+  // Exact public schema of the observed failure: the official Profile uses
+  // OAuth Codex, while a compatible configured provider also exists. Match
+  // the official UI, mark the compatible identity, and never switch to Native.
+  const char* body=R"({"profiles":[{"profile":"default","default":"gpt-6.1-sol",
+    "default_provider":"openai-codex","groups":[
+    {"provider":"openai-codex","api_mode":"codex_responses","models":["gpt-6.1-sol"]},
+    {"provider":"custom:other-provider","api_mode":"chat_completions","models":["other-model"]}]}]})";
+  Fixture fixture;fixture.replies={account(),Reply(Stage::Models,body),tools("codex")};
+  const auto output=resolve(input("codex","default",Preference::Studio),fixture);
+  assert(output.result==Result::Ok&&fixture.call==3);
+  assert(output.preference==Preference::Studio);
+  assert(output.selection.origin==official_studio_models::Origin::CompatibleDefault);
+  assert(std::strcmp(output.selection.provider.data(),"custom:other-provider")==0);
+  assert(std::strcmp(output.selection.model.data(),"other-model")==0);
+  assert(output.mode==official_studio::Mode::Scoped);
+}
+void officialFrontendCompatibleStudio() {
+  // Signed official ChatPanel filters incompatible OAuth groups, then uses
+  // response order. A later Ling group must not override the first compatible
+  // configured group or replace its matching Profile default model.
+  const char* body=R"({"profiles":[{"profile":"default","default":"gpt-6.1-sol",
+    "default_provider":"openai-codex","groups":[
+    {"provider":"openai-codex","api_mode":"codex_responses","models":["gpt-6.1-sol"]},
+    {"provider":"claude-oauth","api_mode":"anthropic_messages","models":["claude-default"]},
+    {"provider":"custom:empty","api_mode":"chat_completions","models":[]},
+    {"provider":"custom:fun-codex","api_mode":null,
+      "api_mode_by_model":{"hidden-first":"chat_completions","disabled-first":"chat_completions","gpt-6.1-sol":"codex_responses"},
+      "models":["hidden-first","disabled-first","gpt-6.1-sol"],
+      "model_meta":{"hidden-first":{"hidden":true},"disabled-first":{"disabled":true}},
+      "api_key":"PRIVATE_COMPATIBLE_KEY","base_url":"https://private.invalid"},
+    {"provider":"custom:ling","api_mode":"chat_completions","models":["Ling-3.2-flash"]}]}]})";
+  for(const char* agent:{"claude-code","codex"})for(size_t step:{size_t(1),size_t(17),size_t(65536)}) {
+    Fixture fixture;fixture.step=step;fixture.replies={account(),Reply(Stage::Models,body),tools(agent)};
+    const auto output=resolve(input(agent,"default",Preference::Studio),fixture);
+    if(output.result!=Result::Ok)std::fprintf(stderr,"Official UI compatible Profile group rejected: result=%u calls=%zu\n",unsigned(output.result),fixture.call);
+    assert(output.result==Result::Ok&&fixture.call==3&&output.mode==official_studio::Mode::Scoped);
+    assert(std::strcmp(output.selection.provider.data(),"custom:fun-codex")==0);
+    assert(std::strcmp(output.selection.model.data(),"gpt-6.1-sol")==0);
+    assert(std::strcmp(output.selection.apiMode.data(),"codex_responses")==0);
+    assert(output.selection.origin==official_studio_models::Origin::CompatibleDefault);
+    assert(output.jsonPeakBytes<=kJsonMemoryBytes);
+    const std::string raw(reinterpret_cast<const char*>(&output),sizeof(output));
+    assert(raw.find("PRIVATE_COMPATIBLE_KEY")==std::string::npos&&raw.find("private.invalid")==std::string::npos);
+  }
+}
+void compatibleStudioOrderAndFailureBoundaries() {
+  const auto response=[]() {
+    JsonDocument document;assert(!deserializeJson(document,models("openai-codex","gpt-6.1-sol")));
+    JsonArray groups=document["profiles"][0]["groups"].as<JsonArray>();
+    JsonObject first=groups.add<JsonObject>();first["provider"]="custom:fun-codex";
+    first["models"][0]="first-visible";first["models"][1]="gpt-6.1-sol";
+    first["api_mode"]=nullptr;first["api_mode_by_model"]["first-visible"]="anthropic_messages";
+    first["api_mode_by_model"]["gpt-6.1-sol"]="codex_responses";
+    JsonObject second=groups.add<JsonObject>();second["provider"]="custom:ling";
+    second["models"][0]="gpt-6.1-sol";second["api_mode"]="chat_completions";
+    return document;
+  };
+  for(int scenario=0;scenario<8;++scenario)for(size_t step:{size_t(1),size_t(65536)}) {
+    auto document=response();JsonObject profile=document["profiles"][0].as<JsonObject>();
+    JsonObject first=profile["groups"][1].as<JsonObject>();
+    const char* expectedProvider="custom:fun-codex";const char* expectedModel="gpt-6.1-sol";
+    const char* expectedMode="codex_responses";bool exact=false,unavailable=false;
+    if(scenario==0) { // Server group order, never a provider-name allowlist.
+      first["provider"]="custom:ling";profile["groups"][2]["provider"]="custom:fun-codex";
+      expectedProvider="custom:ling";
+    } else if(scenario==1) { // Default model is retained only within chosen group.
+      first["models"][1]="another-visible";first["api_mode_by_model"]["another-visible"]="chat_completions";
+      expectedModel="first-visible";expectedMode="anthropic_messages";
+    } else if(scenario==2) {
+      first["model_meta"]["gpt-6.1-sol"]["hidden"]=true;
+      expectedModel="first-visible";expectedMode="anthropic_messages";
+    } else if(scenario==3) { // Fully filtered groups are not the first usable group.
+      first["model_meta"]["first-visible"]["disabled"]=true;
+      first["model_meta"]["gpt-6.1-sol"]["hidden"]=true;
+      expectedProvider="custom:ling";expectedMode="chat_completions";
+    } else if(scenario==4) { // Legal configured default wins over response order.
+      profile["default_provider"]="custom:ling";expectedProvider="custom:ling";
+      expectedMode="chat_completions";exact=true;
+    } else if(scenario==5) { // Existing but empty default provider stays selected, as ChatPanel.
+      profile["default_provider"]="custom:fun-codex";first["models"].to<JsonArray>();unavailable=true;
+    } else if(scenario==6) { // Missing chosen API mode must not try a later provider.
+      first["api_mode"]="chat_completions";first["api_mode_by_model"].remove("gpt-6.1-sol");unavailable=true;
+    } else { // The legal provider stays selected and its first selectable model is used.
+      profile["default_provider"]="custom:fun-codex";
+      first["model_meta"]["gpt-6.1-sol"]["disabled"]=true;
+      expectedModel="first-visible";expectedMode="anthropic_messages";
+    }
+    std::string body;serializeJson(document,body);
+    Fixture fixture;fixture.step=step;fixture.replies={account(),Reply(Stage::Models,body),tools("claude-code")};
+    const auto output=resolve(input("claude-code","default",Preference::Studio),fixture);
+    if(unavailable) {
+      assert(output.result==Result::Unavailable&&fixture.call==2);
+      assert(output.selection.identity().provider==nullptr&&output.mode==official_studio::Mode::Scoped);
+      assert(official_selection_notice::classify(output)==(scenario==6?NoticeReason::ModelConfiguration:NoticeReason::NoCompatibleModel));
+    } else {
+      assert(output.result==Result::Ok&&fixture.call==3&&output.mode==official_studio::Mode::Scoped);
+      assert(std::strcmp(output.selection.provider.data(),expectedProvider)==0);
+      assert(std::strcmp(output.selection.model.data(),expectedModel)==0&&std::strcmp(output.selection.apiMode.data(),expectedMode)==0);
+      assert(output.selection.origin==(exact?official_studio_models::Origin::ProfileDefault:official_studio_models::Origin::CompatibleDefault));
+    }
+    assert(output.jsonPeakBytes<=kJsonMemoryBytes);
+  }
+  Fixture noCompatible;noCompatible.replies={account(),Reply(Stage::Models,models("openai-codex","gpt-6.1-sol"))};
+  const auto output=resolve(input("codex","default",Preference::Studio),noCompatible);
+  assert(output.result==Result::Unavailable&&noCompatible.call==2&&output.mode==official_studio::Mode::Scoped);
+  assert(output.selection.identity().provider==nullptr);
+}
+void explicitPreferenceRouteMatrix() {
+  for(const auto& route:official_studio::kAgentRoutes) {
+    for(auto preference:{Preference::Studio,Preference::Native}) {
+      const bool supported=preference==Preference::Studio?route.scoped:route.global;
+      Fixture fixture;fixture.step=1;
+      if(supported) {
+        fixture.replies.push_back(account());
+        if(preference==Preference::Studio)fixture.replies.emplace_back(Stage::Models,models());
+        if(!std::strcmp(route.source,"coding_agent"))fixture.replies.push_back(tools(route.id));
+        if(preference==Preference::Native)fixture.replies.push_back(catalog(route.id));
+      }
+      const auto output=resolve(input(route.id,"default",preference),fixture);
+      assert(output.preference==preference&&fixture.call==fixture.replies.size());
+      if(!supported) {
+        assert(output.result==Result::PreferenceUnavailable&&output.stage==Stage::Input&&fixture.call==0);
+        assert(official_selection_notice::classify(output)==NoticeReason::PreferenceUnavailable);
+      } else {
+        assert(output.result==Result::Ok&&output.stage==Stage::Complete);
+        assert(output.mode==(preference==Preference::Native?official_studio::Mode::Global:official_studio::Mode::Scoped));
+        if(preference==Preference::Studio)assert(output.selection.origin==official_studio_models::Origin::ProfileDefault);
+        else {
+          assert(output.selection.provider[0]==0&&output.selection.model[0]==0&&output.selection.apiMode[0]==0);
+          for(const auto& path:fixture.paths)assert(path.find("available-models")==std::string::npos);
+        }
+        assert(output.jsonPeakBytes<=kJsonMemoryBytes);
+      }
+    }
+  }
+}
+void studioCompatibleDefaultsAndFailures() {
+  for(int reason=0;reason!=4;++reason) {
+    JsonDocument document;assert(!deserializeJson(document,models()));
+    JsonObject profile=document["profiles"][0].as<JsonObject>();
+    JsonObject group=profile["groups"][0].as<JsonObject>();
+    if(reason==0)profile["default"]="not-available";
+    if(reason==1)profile["default_provider"]="not-available";
+    if(reason==2)group["model_meta"]["my-model"]["disabled"]=true;
+    if(reason==3)group["model_meta"]["my-model"]["hidden"]=true;
+    std::string body;serializeJson(document,body);
+    Fixture fixture;fixture.replies={account(),Reply(Stage::Models,body),tools("codex")};
+    const auto output=resolve(input("codex","default",Preference::Studio),fixture);
+    if(reason<2) {
+      assert(output.result==Result::Ok&&fixture.call==3&&output.mode==official_studio::Mode::Scoped);
+      assert(output.selection.origin==official_studio_models::Origin::CompatibleDefault);
+      assert(std::strcmp(output.selection.provider.data(),"my-provider")==0&&std::strcmp(output.selection.model.data(),"my-model")==0);
+    } else {
+      assert(output.result==Result::Unavailable&&fixture.call==2);
+      assert(official_selection_notice::classify(output)==NoticeReason::NoCompatibleModel);
+    }
+  }
+  {
+    Fixture fixture;fixture.replies={account(),Reply(Stage::Models,emptyModels)};
+    const auto output=resolve(input("codex","default",Preference::Studio),fixture);
+    assert(output.result==Result::Unavailable&&fixture.call==2); // No silent native fallback.
+    assert(official_selection_notice::classify(output)==NoticeReason::ModelConfiguration);
+  }
+  {
+    Fixture fixture;fixture.replies={account(),Reply(Stage::Models,models("my-provider","my-model","other-profile"))};
+    const auto output=resolve(input("codex","default",Preference::Studio),fixture);
+    assert(output.result==Result::Unavailable&&fixture.call==2);
+    assert(official_selection_notice::classify(output)==NoticeReason::ProfileUnavailable);
+  }
+  {
+    Fixture fixture;fixture.replies={account(),Reply(Stage::Models,perModelResponse("{\"m\":\"anthropic_messages\"}","null"))};
+    const auto output=resolve(input("hermes","default",Preference::Studio),fixture);
+    assert(output.result==Result::Ok&&output.selection.origin==official_studio_models::Origin::ProfileDefault);
+    assert(std::strcmp(output.selection.apiMode.data(),"anthropic_messages")==0);
+  }
+}
+void nativeNeverFetchesProviderConfiguration() {
+  for(size_t step:{size_t(1),size_t(17),size_t(65536)}) {
+    auto native=catalog("codex");
+    native.body.pop_back();native.body+=",\"api_key\":\"NATIVE_PRIVATE_SENTINEL\",\"ignored\":\""+std::string(50000,'x')+"\"}";
+    Fixture fixture;fixture.step=step;fixture.replies={account(),tools("codex"),native};
+    const auto output=resolve(input("codex","default",Preference::Native),fixture);
+    assert(output.result==Result::Ok&&output.preference==Preference::Native&&output.mode==official_studio::Mode::Global);
+    assert(fixture.call==3&&fixture.paths[1]=="/api/coding-agents?profile=default");
+    assert(fixture.paths[2]=="/api/coding-agents/models?agent=codex&profile=default");
+    assert(output.jsonPeakBytes<=kJsonMemoryBytes);
+    const std::string raw(reinterpret_cast<const char*>(&output),sizeof(output));
+    assert(raw.find("NATIVE_PRIVATE_SENTINEL")==std::string::npos&&raw.find("fixture.jwt")==std::string::npos);
+    official_studio::Context context;context.machineId="machine";context.accountId="17";context.profile="default";
+    context.agentId="codex";context.sessionId="existing-native-session";context.mode=output.mode;context.connectionEpoch=27;
+    JsonDocument run;
+    assert(official_studio::buildNativeGlobalRun(run,context,output.readiness(context),"hello","q1")==official_studio::Result::Ok);
+    for(const char* absent:{"provider","apiMode","apiKey","api_key","baseUrl","base_url"})assert(run[absent].isUnbound());
+  }
+  for(const char* status:{"auth_required","not_installed","timeout","error"}) {
+    Fixture fixture;fixture.replies={account(),tools("codex"),catalog("codex",status)};
+    const auto output=resolve(input("codex","default",Preference::Native),fixture);
+    const bool advisory=!std::strcmp(status,"auth_required")||!std::strcmp(status,"error");
+    if(advisory) {
+      assert(output.result==Result::Ok&&output.nativeDefaultAttemptPermitted&&fixture.call==3);
+      assert(official_selection_notice::classify(output)==NoticeReason::None);continue;
+    }
+    const bool transient=!std::strcmp(status,"timeout");
+    assert(output.result==(transient?Result::Transient:Result::Unavailable)&&fixture.call==3);
+    assert(official_selection_notice::classify(output)==(transient?NoticeReason::NativeUnavailable:
+        !std::strcmp(status,"auth_required")?NoticeReason::AgentAuth:NoticeReason::NotInstalled));
+  }
+  Fixture missing;missing.replies={account(),tools("codex",false)};
+  assert(resolve(input("codex","default",Preference::Native),missing).result==Result::Unavailable&&missing.call==2);
+}
+void explicitNativeDefaultCatalogAdvisory() {
+  // Official Cursor UI accepts the native CLI default even when this advisory
+  // catalog says auth_required. Qoder may still fail its REAL run; admission
+  // never proves provider authorization or changes to a different model.
+  for(const char* agent:{"cursor","qoder"})for(const char* status:{"auth_required","error"}) {
+    Fixture fixture;fixture.step=1;
+    auto native=catalog(agent,status);
+    const auto start=native.body.find("\"models\":[");assert(start!=std::string::npos);
+    native.body.erase(start+10);native.body+="]}]}";
+    fixture.replies={account(),tools(agent),native};
+    const auto output=resolve(input(agent,"default",Preference::Native),fixture);
+    assert(output.result==Result::Ok&&output.stage==Stage::Complete&&fixture.call==3);
+    assert(output.nativeDefaultAttemptPermitted&&output.nativeResult==(!std::strcmp(status,"auth_required")?
+        official_studio::Result::AuthenticationRequired:official_studio::Result::RetryableUnavailable));
+    official_studio::Context context;context.machineId="machine";context.accountId="17";context.profile="default";
+    context.agentId=agent;context.sessionId="owned-native-session";context.mode=output.mode;context.connectionEpoch=27;
+    JsonDocument run;const auto readiness=output.readiness(context);assert(readiness.model==nullptr);
+    assert(official_studio::buildNativeGlobalRun(run,context,readiness,"hello","q1")==official_studio::Result::Ok);
+    assert(run["model"].isUnbound()&&run["provider"].isUnbound()&&run["apiMode"].isUnbound());
+    assert(output.retryAfterMs==0&&output.jsonPeakBytes<=kJsonMemoryBytes);
+    auto stale=context;++stale.connectionEpoch;
+    assert(output.readiness(stale).result==official_studio::Result::StaleContext);
+    stale=context;stale.accountId="18";
+    assert(output.readiness(stale).result==official_studio::Result::StaleContext);
+    stale=context;stale.profile="other";
+    assert(output.readiness(stale).result==official_studio::Result::StaleContext);
+    stale=context;stale.agentId="codex";
+    assert(output.readiness(stale).result==official_studio::Result::StaleContext);
+    auto automatic=output;automatic.preference=Preference::Automatic;
+    assert(automatic.readiness(context).result==output.nativeResult);
+  }
+  for(const char* status:{"auth_required","error"}) {
+    Fixture automatic;automatic.replies={account(),tools("cursor"),catalog("cursor",status)};
+    const auto output=resolve(input("cursor","default",Preference::Automatic),automatic);
+    assert(output.result!=Result::Ok&&!output.nativeDefaultAttemptPermitted);
+  }
+  for(int http:{401,403,408,429,500}) {
+    Fixture denied;auto native=catalog("cursor","auth_required");native.status=http;
+    denied.replies={account(),tools("cursor"),native};
+    const auto output=resolve(input("cursor","default",Preference::Native),denied);
+    assert(output.result!=Result::Ok&&!output.nativeDefaultAttemptPermitted&&output.httpStatus==http);
+  }
+  for(const char* status:{"not_installed","timeout"}) {
+    Fixture denied;denied.replies={account(),tools("cursor"),catalog("cursor",status)};
+    const auto output=resolve(input("cursor","default",Preference::Native),denied);
+    assert(output.result!=Result::Ok&&!output.nativeDefaultAttemptPermitted);
+  }
+  for(const auto& body:{
+      std::string("{\"agents\":[{\"agentId\":\"other\",\"status\":\"auth_required\",\"models\":[]}]}"),
+      std::string("{\"agents\":[{\"agentId\":\"cursor\",\"status\":\"auth_required\",\"models\":null}]}"),
+      std::string("{\"agents\":[{\"agentId\":\"cursor\",\"status\":\"auth_required\",\"models\":[]},{\"agentId\":\"cursor\",\"status\":\"auth_required\",\"models\":[]}]}"),
+      std::string("{\"agents\":[{\"agentId\":\"cursor\",\"status\":\"auth_required\",\"models\":[{\"id\":\"m\",\"hidden\":null}]}]}"),
+      std::string("{\"agents\":[{\"agentId\":\"cursor\",\"status\":\"auth_required\",\"models\":[]}]} trailing")}) {
+    Fixture invalid;invalid.replies={account(),tools("cursor"),Reply(Stage::NativeModels,body)};
+    const auto output=resolve(input("cursor","default",Preference::Native),invalid);
+    assert(output.result==Result::Invalid&&!output.nativeDefaultAttemptPermitted);
+  }
+  Fixture interrupted;auto native=catalog("cursor","auth_required");native.complete=false;
+  interrupted.replies={account(),tools("cursor"),native};
+  const auto output=resolve(input("cursor","default",Preference::Native),interrupted);
+  assert(output.result==Result::Transient&&!output.nativeDefaultAttemptPermitted);
+}
+void invalidPreferenceRejected() {
+  auto value=input();value.preference=static_cast<Preference>(255);Fixture fixture;
+  assert(!validInput(value)&&resolve(value,fixture).result==Result::Invalid&&fixture.call==0);
+  assert(makeInput(value,"http://host","token","default","codex",1,static_cast<Preference>(255))==Result::Invalid);
+  assert(value.userJwt[0]==0&&value.epoch==0&&value.preference==Preference::Automatic);
+}
+void studio0822PerModelProjection() {
+  const char* body=R"({"profiles":[{"profile":"default","default":"deepseek-flash",
+    "default_provider":"custom:deepseek1017","groups":[{"provider":"custom:deepseek1017",
+    "api_mode":null,"api_mode_by_model":{"deepseek-flash":"anthropic_messages",
+    "deepseek-v4-pro":"chat_completions"},"models":["deepseek-flash","deepseek-v4-pro"]}]}]})";
+  for(size_t step:{size_t(1),size_t(17),size_t(65536)}) {
+    Fixture fixture;fixture.step=step;fixture.replies={account(),Reply(Stage::Models,body)};
+    const auto output=resolve(input("ekko-agent"),fixture);
+    if(output.result!=Result::Ok)std::fprintf(stderr,"Official 0.8.22 stream rejected: result=%u stage=%u model=%u\n",
+        unsigned(output.result),unsigned(output.stage),unsigned(output.selection.result));
+    assert(output.result==Result::Ok&&output.stage==Stage::Complete&&fixture.call==2);
+    assert(std::strcmp(output.selection.apiMode.data(),"anthropic_messages")==0);
+    assert(output.jsonPeakBytes<=kJsonMemoryBytes);
+  }
+}
+std::string perModelResponse(const std::string& map, const std::string& scalar="\"chat_completions\"") {
+  return "{\"profiles\":[{\"profile\":\"default\",\"default\":\"m\",\"default_provider\":\"p\",\"groups\":[{\"provider\":\"p\",\"models\":[\"m\"],\"api_mode\":"+
+      scalar+",\"api_mode_by_model\":"+map+"}]}]}";
+}
+void perModelProjectionBoundaries() {
+  using M=official_studio_models::Result;
+  for(size_t step:{size_t(1),size_t(17),size_t(65536)}) {
+    for(const char* map:{R"({"m":null})",R"({})",R"({"other-model":"codex_responses"})",R"({"m":""})"}) {
+      Fixture fixture;fixture.step=step;fixture.replies={account(),Reply(Stage::Models,perModelResponse(map))};
+      const auto output=resolve(input("ekko-agent"),fixture);
+      assert(output.result==Result::Unavailable&&output.selection.result==M::NeedsConfiguration&&fixture.call==2);
+    }
+    for(const char* map:{R"({"m":"anthropic_messages"})",R"({"m":"codex_responses","unused":null})"}) {
+      Fixture fixture;fixture.step=step;
+      fixture.replies={account(),Reply(Stage::Models,perModelResponse(map,"\"codex_app_server\""))};
+      const auto output=resolve(input("ekko-agent"),fixture);
+      assert(output.result==Result::Ok&&output.selection.result==M::Ok);
+      assert(std::strcmp(output.selection.apiMode.data(),"codex_app_server")!=0);
+      assert(output.jsonPeakBytes<=kJsonMemoryBytes);
+    }
+    for(const char* map:{"null","[]","true","42",R"("chat_completions")",
+        R"({"m":true})",R"({"m":42})",R"({"m":{}})",R"({"m":[]})",
+        R"({"m":"chat_completions\u0000evil"})",R"({"m\u0000evil":"chat_completions"})",
+        R"({"":"chat_completions"})",R"({"m":null,"m":"chat_completions"})",
+        R"({"m":"chat_completions","m":null})"}) {
+      Fixture fixture;fixture.step=step;fixture.replies={account(),Reply(Stage::Models,perModelResponse(map))};
+      const auto output=resolve(input("ekko-agent"),fixture);
+      assert(output.result==Result::Invalid&&output.selection.result!=M::Ok&&fixture.call==2);
+    }
+  }
+  {
+    // A map can precede models/defaults. Disabled default falls back only
+    // within its provider, and mode lookup follows that actual selected model.
+    const char* body=R"({"profiles":[{"groups":[{"api_mode_by_model":{"disabled":"chat_completions","enabled":"anthropic_messages"},
+      "model_meta":{"disabled":{"disabled":true}},"models":["disabled","enabled"],"provider":"p"}],
+      "default":"disabled","default_provider":"p","profile":"default"}]})";
+    Fixture fixture;fixture.step=1;fixture.replies={account(),Reply(Stage::Models,body)};
+    const auto output=resolve(input("ekko-agent"),fixture);
+    assert(output.result==Result::Ok&&std::strcmp(output.selection.model.data(),"enabled")==0);
+    assert(std::strcmp(output.selection.apiMode.data(),"anthropic_messages")==0);
+  }
+  {
+    const auto map=R"({"m":"bedrock_converse"})";
+    Fixture fixture;fixture.replies={account(),Reply(Stage::Models,perModelResponse(map))};
+    const auto output=resolve(input("ekko-agent"),fixture);
+    assert(output.result==Result::Invalid&&output.selection.result==M::UnsupportedApiMode);
+  }
+  for(size_t bytes:{official_studio_models::kApiModeMaxBytes,official_studio_models::kApiModeMaxBytes+1}) {
+    Fixture fixture;fixture.replies={account(),Reply(Stage::Models,perModelResponse("{\"m\":\""+std::string(bytes,'x')+"\"}"))};
+    const auto output=resolve(input("ekko-agent"),fixture);
+    assert(output.result==Result::Invalid);
+    if(bytes==official_studio_models::kApiModeMaxBytes)assert(output.selection.result==M::UnsupportedApiMode);
+  }
+  for(size_t bytes:{official_studio_models::kModelMaxBytes,official_studio_models::kModelMaxBytes+1}) {
+    JsonDocument document;assert(!deserializeJson(document,perModelResponse("{}")));
+    const std::string model(bytes,'m');JsonObject group=document["profiles"][0]["groups"][0].as<JsonObject>();
+    document["profiles"][0]["default"]=model;group["models"][0]=model;
+    group["api_mode_by_model"][model]="anthropic_messages";
+    std::string body;serializeJson(document,body);
+    Fixture fixture;fixture.step=1;fixture.replies={account(),Reply(Stage::Models,body)};
+    const auto output=resolve(input("ekko-agent"),fixture);
+    assert(output.result==(bytes==official_studio_models::kModelMaxBytes?Result::Ok:Result::Invalid));
+    assert(output.jsonPeakBytes<=kJsonMemoryBytes);
+  }
+  {
+    auto body=perModelResponse("{\"m\":\"chat_completions\"}");
+    const auto field=body.find("\"api_mode_by_model\":");assert(field!=std::string::npos);
+    body.insert(field,"\"api_mode_by_model\":null,");
+    Fixture fixture;fixture.replies={account(),Reply(Stage::Models,body)};
+    assert(resolve(input("ekko-agent"),fixture).result==Result::Invalid);
+  }
+  {
+    // Retaining mode metadata uses the same 32KiB aggregate allocator cap.
+    // More map entries must fail explicitly, never create an unbounded cache.
+    std::string map="{\"m\":\"anthropic_messages\"";
+    for(unsigned n=0;n!=5000;++n)map+=",\"unused-"+std::to_string(n)+"\":\"chat_completions\"";
+    map+='}';Fixture fixture;fixture.step=1023;
+    fixture.replies={account(),Reply(Stage::Models,perModelResponse(map))};
+    const auto output=resolve(input("ekko-agent"),fixture);
+    assert(output.result==Result::NoMemory&&output.selection.result!=M::Ok);
+    assert(output.jsonPeakBytes<=kJsonMemoryBytes);
+  }
+  std::puts("Per-model mode projection: official 0.8.22 shape, precedence/null/visibility, bounded map, malformed/NUL/duplicate/oversize rejection passed");
 }
 void invalidAndCompleteResponses() {
   const std::vector<std::string> invalidAccounts{
@@ -237,6 +617,8 @@ void selectionNotices() {
     {Result::Invalid,Stage::Models,200,N::NativeNotReady,M::IdentityTooLong,NoticeReason::IdentityTooLong},
     {Result::Invalid,Stage::Account,200,N::NativeNotReady,M::InvalidResponse,NoticeReason::InvalidConfiguration},
     {Result::Unavailable,Stage::Input,0,N::NativeNotReady,M::InvalidResponse,NoticeReason::AgentUnavailable},
+    {Result::DefaultModelIncompatible,Stage::Models,200,N::NativeNotReady,M::Ok,NoticeReason::DefaultModelIncompatible},
+    {Result::PreferenceUnavailable,Stage::Input,0,N::NativeNotReady,M::InvalidResponse,NoticeReason::PreferenceUnavailable},
     // Details from a different/not-yet-run stage cannot override this result.
     {Result::Unavailable,Stage::Models,200,N::NotInstalled,M::InvalidResponse,NoticeReason::AgentUnavailable},
     {Result::Unavailable,Stage::Installed,200,N::NativeNotReady,M::NeedsConfiguration,NoticeReason::AgentUnavailable},
@@ -397,12 +779,13 @@ void jobLifecycle() {
     waitFor([&](){return gate->entered.load(std::memory_order_acquire);});
     Output output;assert(job.poll(output)==Poll::Pending);
     assert(job.start(input())==StartResult::Busy); // A second request cannot overwrite the first.
-    original.userJwt.fill('z');original.userJwt.back()=0;original.profile[0]='X';original.agentId[0]='X';
+    original.userJwt.fill('z');original.userJwt.back()=0;original.profile[0]='X';original.agentId[0]='X';original.preference=Preference::Native;
     if(pass&1)job.cancel();
     gate->release.store(true,std::memory_order_release);
     waitFor([&](){return job.poll(output)==Poll::Ready;});
     assert(output.result==((pass&1)?Result::Cancelled:Result::Ok));
     assert(output.epoch==27&&std::strcmp(output.profile.data(),"default")==0&&std::strcmp(output.agentId.data(),"hermes")==0);
+    assert(output.preference==Preference::Automatic);
     assert(gate->destroyed.load(std::memory_order_acquire)&&!job.busy()&&job.poll(output)==Poll::Idle);
   }
   for(unsigned pass=0;pass<20;++pass) {
@@ -419,7 +802,9 @@ void jobLifecycle() {
 }
 #endif
 } // namespace
-int main(){allRoutes();scopedAndNative();invalidAndCompleteResponses();classificationAndCancellation();selectionNotices();memoryAndIdentity();
+int main(){explicitNativeDefaultCatalogAdvisory();officialFrontendCompatibleStudio();compatibleStudioOrderAndFailureBoundaries();allRoutes();scopedAndNative();explicitStudioStaysScoped();explicitPreferenceRouteMatrix();
+  studioCompatibleDefaultsAndFailures();nativeNeverFetchesProviderConfiguration();invalidPreferenceRejected();
+  studio0822PerModelProjection();perModelProjectionBoundaries();invalidAndCompleteResponses();classificationAndCancellation();selectionNotices();memoryAndIdentity();
 #ifndef ARDUINO
   jobLifecycle();
 #endif

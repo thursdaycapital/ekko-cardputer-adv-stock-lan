@@ -1,20 +1,10 @@
-# Cardputer ADV 官方 Studio 局域网直连固件
+# Cardputer-Adv v10 应用源码
 
-兼容基线为 **官方原版 Ekko Studio v0.7.36**，无需电脑补丁或桥接服务。当前固件版本 `cardputer-adv-v9.0.0-dev.10-ram-lan`；开发候选的实际验收状态以交付目录中的记录为准。
+本目录是局域网免电脑补丁的应用重构候选；本版实机验收必须以新记录为准，不能继承旧 dev.10/dev.12 结论。应用策略、手势、展示、异步连接、自动鉴权和未知发送恢复已拆为独立生产模块，旧的有界聊天／音频解析及硬件驱动继续复用。
 
-## 使用方式
+首页左右只浏览，Tab 选择并保存 Studio模型／原生CLI，OK 激活后自动聊天；短 G0／Esc 返回，长 G0 或 Fn＋空格录音。正文、输入框和状态均保持中文 12px。Ctrl＋空格切换中英文；Fn＋上下直接翻记录，Tab 模式可继续使用。
 
-电脑与 M5 连接同一个局域网，电脑保持开机并运行 Studio。第一次在 M5 设备网页选择电脑、登录 Studio 账号并选择 Profile；之后保存连接信息，按保存绑定恢复连接；已验证范围见文末。可直接读取 Studio 的模型配置，不把模型 API Key 预置到固件。
-
-M5 显示 16 个规范 Agent：Ekko、Hermes、Claude Code、Codex、Pi、Grok、OpenCode、DSH、Cursor、Antigravity、Qwen、Kimi、CodeBuddy、Qoder、Copilot、ZCode。某个 Agent 能否实际运行，取决于电脑上的安装、授权、模型及该 Agent 支持的模式。不可用时显示错误，不自动换成其他 Agent。
-
-- Agent 首页方向键切换，OK 进入聊天，聊天页 Esc 返回首页；首页 Esc 返回原厂菜单。
-- 直接打字，OK 发送；Ctrl＋空格切换中文／英文，拼音按空格选择候选。
-- Tab 进入历史浏览，方向键翻阅，Tab 或 OK 回到输入。
-- 按住 Fn＋空格说话，松开发送；短按停止，双击建立新会话，旧记录保留在 Studio。
-- Ekko 聊天录音不需要 SD 卡：16kHz 单声道音频在 RAM 中以4bit IMA暂存，单次最长5秒，松开后流式还原 PCM WAV 上传官方 STT。内存不足时明确拒绝录音／上传，文字聊天仍可使用。
-
-当前为**局域网版**。电脑开启远程中继，不会让此版本自动获得跨网连接能力。远程需要后续独立接入和验收。
+录音只在 RAM 以 4bit IMA 暂存 16kHz 单声道，最多五秒，松开后流式还原 WAV 上传。未确定发送先同步和人工核对，绝不自动重发。完整日常操作见根目录 README。
 
 ## 协议和保存边界
 
@@ -38,7 +28,7 @@ M5 显示 16 个规范 Agent：Ekko、Hermes、Claude Code、Codex、Pi、Grok�
 
 ```sh
 cd source
-uvx --from platformio pio run -d . -e cardputer-adv
+uvx --from platformio==6.2.0 pio run -d . -e cardputer-adv
 python3 -B tests/run_tests.py
 python3 -B tests/run_http_transport_tests.py
 python3 -B tests/run_chat_tests.py
@@ -55,10 +45,20 @@ python3 -B tests/run_localization_tests.py
 
 `build_options.py` 统一固定 M5GFX 的 C++ 包含顺序，并启用编译及链接 LTO，以装入 `0x330000` 应用分区；不修改依赖文件、不压缩或改变显示字体。
 
-## 验证与限制
+## 明确的模型模式
 
-`tests/integration/` 可启动并逐文件校验独立官方 npm 实例，检查原生登录、后台在线状态、实际 Agent、历史及主机音频往返。测试会产生模型／语音提供方用量。私有种子、账号、日志不得放进源码。
+Studio 模式只接受当前 Profile 明确配置的默认提供方、模型和接口模式，不支持或缺失时准确拒绝；不选择列表里的其他提供方。原生CLI模式只在该 Agent 支持时读取官方安装／原生模型接口，由电脑的 CLI 使用自身登录与配置。选择只保存在设备，电脑设置不变。两模式的会话绑定分开保存。
 
-本候选已通过25项主机回归及目标构建；真实M5已在独立官方原版Studio完成无SD短句识别、文字回答及有声播放，采集无溢出、播放无写超时，中文输入与实际屏幕也已核对。已在日常签名App内官方0.7.36取得用户确认：现有DeepSeek配置下的文字回复、识别、回答和实际声音正常。收尾时观察到日常App更新为官方0.7.37，新进程已与M5自动恢复连接；更新后用户已确认M5新消息收到回答，设备新启动记录也显示保存绑定匹配、聊天就绪、已接受1次发送并收到13个回复分片。0.7.37本轮补测为文字，语音不混用前一版本结果。用户反馈5秒自动停止及重开免登录正常；此前08:45UTC的日常遥测仍为上一段1.984秒短录，没有独立取得录满五秒字节数据。新应用启动及保存绑定恢复已观测到，但不能单凭uptime区分断电与重新进入应用。签名失效恢复有新原版进程／双通道／JWT合同证据，真正时间到期、语音中途断网及完整压力矩阵尚未单独实测。不要把开发候选当作已完成全部验收的通用首刷版。原厂工具源码和原有稳定版保留在上一版交付目录；本次普通升级只写 Ekko 应用分区。
+## 本版验证边界
 
-保留所有原项目、字体、头像、音频解码库和依赖的许可证与来源说明。字体素材见 `assets/fusion-pixel/`，头像及视频来源见各自 assets 目录。
+默认 host suite 包含 ExperienceController、Gesture/Mailbox、SendRecovery、Wi-Fi 重试、严格握手、自动身份验证、会话／历史／模型、录音和采集队列。实际生产模块通过固定接口注入 host transport；主机的内存／音频边界不代表 M5 实机成功。
+
+可选真实 Studio 握手检查（无登录、无 Agent 用量）：
+
+```sh
+python3 -B tests/integration/test_studio_upgrade.py 127.0.0.1 --port 8748
+```
+
+Management 请求等待限制为750ms、头2KiB、总4KiB；显式网页处理和响应仍同步。TLS SDK 的单次写入仍可能晚返回；此版验收优先明文 HTTP 的同网 Studio。RAM 和任务栈的门槛只能拒绝明显不足，必须进一步取得实机水位。
+
+当前仅更新现有 `0x330000` 应用槽，不格式化或初始化 SD／存储；原厂独立 SD 录音工具保留。

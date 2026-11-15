@@ -12,7 +12,7 @@ namespace official_history {
 
 constexpr size_t kBaseUrlBytes=512, kJwtBytes=4096, kProfileBytes=224, kSessionBytes=224;
 constexpr size_t kPageSize=12;
-constexpr uint16_t kTimeoutMs=8000;
+constexpr uint16_t kTimeoutMs=8000; // Aggregate page + optional local404 proof.
 constexpr uint32_t kTaskStackBytes=8192;
 using Snapshot=official_incoming::Snapshot<kPageSize>;
 
@@ -23,10 +23,16 @@ struct Input {
   std::array<char,kProfileBytes+1> profile{};
   std::array<char,kSessionBytes+1> session{};
   uint32_t epoch=0, offset=0, byteOffset=0;
+  // Explicit owner provenance, never inferred from an ID prefix. Only a
+  // caller-owned local /chat-run ID with no confirmed history may prove empty
+  // on its initial zero-offset page; legacy/remote-only Hermes IDs keep this
+  // false even if local detail is404.
+  bool allowLocalAbsence=false;
   ~Input(); // Wipes this owned JWT copy; no logging.
 };
 Result makeInput(Input&,const char* baseUrl,const char* userJwt,const char* profile,
-                 const char* session,uint32_t epoch,uint32_t offset=0,uint32_t byteOffset=0);
+                 const char* session,uint32_t epoch,uint32_t offset=0,uint32_t byteOffset=0,
+                 bool allowLocalAbsence=false);
 bool validInput(const Input&);
 
 struct Output {
@@ -36,7 +42,8 @@ struct Output {
   std::array<char,kProfileBytes+1> profile{};
   std::array<char,kSessionBytes+1> session{};
   // Present ONLY after a complete, validated HTTP/JSON response. Empty is a
-  // literal HTTP 404; only the caller decides whether a new session permits it.
+  // fully validated local-detail404 "Session not found"; only the caller
+  // decides whether the current new-session scope permits an empty history.
   std::unique_ptr<Snapshot> snapshot;
 };
 
@@ -72,7 +79,10 @@ class Cancellation {
 
 // Synchronous parsing pipeline for a worker/host fixture, not the Arduino loop.
 // Snapshot and SAX workspace are bounded heap allocations, independent of the
-// total message length. UTF-8 windows can be reloaded using byteOffset.
+// total message length. UTF-8 windows can be reloaded using byteOffset. A page
+// 404/5xx is never absence by itself: when the owner explicitly permits local
+// absence, probe local detail within the same deadline. Legacy/remote scopes
+// never infer empty; successful pages never fetch unpaginated detail.
 Output resolve(const Input&,Transport&,const Cancellation* =nullptr);
 
 enum class StartResult:uint8_t { Started, Busy, Invalid, NoMemory, NotSupported };

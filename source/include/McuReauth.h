@@ -5,7 +5,7 @@
 
 namespace native_reauth {
 
-enum class Outcome { NoAttempt, TransientFailure, Rejected, Success };
+enum class Outcome { NoAttempt, TransientFailure, Rejected, Success, BindingChanged };
 
 enum class BootstrapAction { WaitForWifi, ResumeSocket, QueueReauth, RequireManual };
 struct BootstrapState {
@@ -101,6 +101,24 @@ struct Target {
   bool remote;
 };
 
+// Public discovery is diagnostic evidence only. It must never authorize
+// sending saved credentials or replace the complete saved machine identity.
+struct BindingObservation {
+  const char* deviceKey;
+  bool sameEndpoint;
+  bool remote;
+  bool identityVerified;
+  uint32_t lastSeenMs;
+};
+
+inline bool observedBindingChange(const Target& saved, const BindingObservation& candidate,
+                                 uint32_t now, uint32_t maximumAgeMs) {
+  return !saved.remote && !candidate.remote && candidate.sameEndpoint && candidate.identityVerified &&
+      maximumAgeMs > 0 && static_cast<uint32_t>(now - candidate.lastSeenMs) < maximumAgeMs &&
+      completeDeviceBinding(saved.deviceKey) && completeDeviceBinding(candidate.deviceKey) &&
+      !sameDeviceBinding(saved.deviceKey, candidate.deviceKey);
+}
+
 inline bool restoreManualProfileOnFailure(bool loginSucceeded, const Target& previous, const Target& current) {
   if (loginSucceeded || (current.profile && *current.profile)) return false;
   return std::string(previous.deviceKey ? previous.deviceKey : "") == (current.deviceKey ? current.deviceKey : "") &&
@@ -152,8 +170,9 @@ class RetryPolicy {
     inFlight_ = false;
     if (outcome == Outcome::Success) {
       cancel();
-    } else if (outcome == Outcome::Rejected) {
+    } else if (outcome == Outcome::Rejected || outcome == Outcome::BindingChanged) {
       rejected_ = true;
+      bindingChanged_ = outcome == Outcome::BindingChanged;
     } else {
       if (failures_ < 3) ++failures_;
       failedAtMs_ = now;
@@ -161,17 +180,19 @@ class RetryPolicy {
     return true;
   }
 
-  void requireManual(const Target& target) {
+  void requireManual(const Target& target, bool bindingChanged = false) {
     cancel();
     deviceKey_ = text(target.deviceKey); deviceUrl_ = text(target.deviceUrl);
     relayUrl_ = text(target.relayUrl); profile_ = text(target.profile); remote_ = target.remote;
     active_ = rejected_ = true;
+    bindingChanged_ = bindingChanged;
   }
 
   // An explicit login/logout/target selection cancels retries, never credentials
   // or a relay_replaced restriction. Those are owned by the caller.
   void cancel() {
     active_ = rejected_ = inFlight_ = false;
+    bindingChanged_ = false;
     failures_ = 0;
     failedAtMs_ = 0;
     deviceKey_.clear(); deviceUrl_.clear(); relayUrl_.clear(); profile_.clear();
@@ -183,6 +204,7 @@ class RetryPolicy {
   }
   bool active() const { return active_; }
   bool rejected() const { return rejected_; }
+  bool bindingChanged() const { return bindingChanged_; }
   bool inFlight() const { return inFlight_; }
   bool blocksSocket() const { return active_; }
   // A temporarily unreachable saved LAN endpoint must not prevent finding the
@@ -198,7 +220,7 @@ class RetryPolicy {
   std::string deviceKey_, deviceUrl_, relayUrl_, profile_;
   uint32_t failedAtMs_ = 0;
   uint8_t failures_ = 0;
-  bool active_ = false, rejected_ = false, inFlight_ = false, remote_ = false;
+  bool active_ = false, rejected_ = false, inFlight_ = false, remote_ = false, bindingChanged_ = false;
 };
 
 } // namespace native_reauth

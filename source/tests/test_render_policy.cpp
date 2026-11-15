@@ -85,6 +85,26 @@ int main() {
   chat.input_method_revision = 2;
   assert(idleChat.consider(chat, 21003) == NativeRenderDecision::Draw);
 
+  // Capture time is a visible frame input, independent of message revisions.
+  idleChat.commit(chat, 22000);
+  chat.recording = true;
+  assert(idleChat.consider(chat, 22001) == NativeRenderDecision::Draw);
+  idleChat.commit(chat, 22001);
+  chat.recording_elapsed_tenths = 12;
+  assert(idleChat.consider(chat, 22101) == NativeRenderDecision::Draw);
+  idleChat.commit(chat, 22101);
+  assert(idleChat.consider(chat, 22102) == NativeRenderDecision::SameState);
+  chat.recording_limit_ms = 4000;
+  assert(idleChat.consider(chat, 22102) == NativeRenderDecision::Draw);
+  chat.recording = false;
+  assert(idleChat.consider(chat, 22102) == NativeRenderDecision::Draw);
+  idleChat.commit(chat, 22200);
+  chat.send_uncertain = true;
+  assert(idleChat.consider(chat, 22201) == NativeRenderDecision::Draw);
+  idleChat.commit(chat, 22201);
+  chat.send_reviewable = true;
+  assert(idleChat.consider(chat, 22202) == NativeRenderDecision::Draw);
+
   NativeRenderPolicy dynamic;
   input = baseline; input.interaction = true; input.monochrome = pixels.data();
   dynamic.commit(input, 100);
@@ -102,6 +122,9 @@ int main() {
   NativeRenderInput navigation = input;
   navigation.browse = 1;
   assert(dynamic.consider(navigation, 181) == NativeRenderDecision::Draw);
+  NativeRenderInput mode = input;
+  mode.mode_label = "原生CLI";
+  assert(dynamic.consider(mode, 181) == NativeRenderDecision::Draw);
 
   input.monochrome = nullptr;
   assert(dynamic.consider(input, 259) == NativeRenderDecision::Throttled);

@@ -10,7 +10,7 @@ enum class Reason : uint8_t {
   BackendUnavailable, AccessDenied, MissingResource, NotInstalled,
   AgentAuth, NativeModelUnavailable, ProfileUnavailable, ModelConfiguration,
   NoCompatibleModel, ApiModeUnsupported, IdentityTooLong, InvalidConfiguration,
-  AgentUnavailable
+  AgentUnavailable, DefaultModelIncompatible, PreferenceUnavailable
 };
 
 inline Reason classify(const official_selection::Output& output) {
@@ -22,6 +22,8 @@ inline Reason classify(const official_selection::Output& output) {
   if(output.result==R::Cancelled)return Reason::Cancelled;
   if(output.result==R::AuthInvalid)return Reason::StudioAuth;
   if(output.result==R::NoMemory)return Reason::NoMemory;
+  if(output.result==R::DefaultModelIncompatible)return Reason::DefaultModelIncompatible;
+  if(output.result==R::PreferenceUnavailable)return Reason::PreferenceUnavailable;
   if(output.result==R::Transient) {
     if(output.httpStatus==429)return Reason::RateLimited;
     if(output.stage==S::NativeModels && output.httpStatus==200 &&
@@ -73,6 +75,8 @@ inline Notice describe(Reason reason) {
     case Reason::IdentityTooLong:return {"identity_too_long", "模型配置名称过长"};
     case Reason::InvalidConfiguration:return {"invalid_configuration", "后台配置格式不受支持"};
     case Reason::AgentUnavailable:return {"agent_unavailable", "Agent 配置不可用，请检查电脑"};
+    case Reason::DefaultModelIncompatible:return {"default_model_incompatible", "默认模型不适配，请切换模式"};
+    case Reason::PreferenceUnavailable:return {"preference_unavailable", "所选 Agent 不支持此模式"};
   }
   return {"agent_unavailable", "Agent 配置不可用，请检查电脑"};
 }

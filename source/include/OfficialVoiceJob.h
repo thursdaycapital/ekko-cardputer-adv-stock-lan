@@ -9,9 +9,11 @@
 namespace official_voice_job {
 constexpr size_t kBaseUrlBytes=512,kJwtBytes=4096,kProfileBytes=224,kSessionBytes=224;
 constexpr size_t kTextBytes=1024,kTranscriptBytes=512,kPcmSamples=1024,kPcmSlots=2;
-constexpr uint32_t kTaskStackBytes=32*1024;
+constexpr uint32_t kSttTaskStackBytes=16*1024,kTlsSttTaskStackBytes=32*1024,kTtsTaskStackBytes=32*1024;
+constexpr uint32_t kTaskStackBytes=kTtsTaskStackBytes; // Maximum/legacy budget; use taskStackBytes for admission.
 enum class Type:uint8_t { Stt, Tts };
 enum class StartResult:uint8_t { Started, Busy, Invalid, NoMemory, NotSupported };
+enum class StartStage:uint8_t { None, Validation, StateAllocation, MutexCreation, SignalCreation, TaskCreation, Started };
 enum class Poll:uint8_t { Idle, Pending, Ready };
 
 struct Context {
@@ -25,6 +27,18 @@ struct Context {
 official_voice::Error makeContext(Context&,const char* baseUrl,const char* userJwt,
                                  const char* profile,const char* session,uint32_t epoch);
 bool validContext(const Context&);
+// STT uploads PCM without decoding MP3. Only plain HTTP gets the smaller
+// budget; HTTPS retains TLS headroom. These are ESP-IDF stack BYTES.
+uint32_t taskStackBytes(Type,const Context&);
+
+struct StartDiagnostics {
+  StartStage stage=StartStage::None;
+  StartResult result=StartResult::Invalid; // No attempt yet while stage==None.
+  uint32_t taskStackBytes=0;
+  uint32_t beforeStateFreeBytes=0,beforeStateLargestBlockBytes=0;
+  uint32_t beforeTaskFreeBytes=0,beforeTaskLargestBlockBytes=0;
+  bool resourcesAvailable=false; // Snapshots are unavailable on non-Arduino builds.
+};
 
 struct Output {
   official_voice::Result result;
@@ -95,8 +109,12 @@ class Job {
   bool busy()const;
   void cancel(); // Discards queued blocks; borrowed blocks live until reset().
   static size_t fixedJobHeapBytes(); // Includes 2 slots/context/output, not Reader/HTTP/TLS.
+  StartStage lastStartStage()const{return lastStart_.stage;}
+  StartResult lastStartResult()const{return lastStart_.result;}
+  const StartDiagnostics& lastStartDiagnostics()const{return lastStart_;}
  private:
   SharedState* state_=nullptr;
+  StartDiagnostics lastStart_{}; // Counts/stages only; never contains credentials or audio.
   StartResult start(const Context&,Type,const char*,std::unique_ptr<official_voice::Reader>,
                     size_t,uint32_t,uint16_t,uint64_t,std::unique_ptr<official_voice::Transport>,
                     official_voice::RawPcmFormat);

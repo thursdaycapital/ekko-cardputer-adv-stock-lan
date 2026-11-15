@@ -3,7 +3,7 @@
 #include <esp_err.h>
 #include "AgentSelection.h"
 #include "NavigationInput.h"
-#include "ConversationView.h"
+#include "DevicePresentation.h"
 #include "ChatKeyboard.h"
 #include "ChatModel.h"
 #include "BootVideoPlayer.h"
@@ -27,8 +27,16 @@ CardputerChatViewport cardputerChatViewport();
 size_t cardputerChatMessageScroll(const NativeChatModel& chat, const char* id, bool atEnd, bool hasNotice);
 size_t cardputerChatContentLines(const NativeChatModel& chat);
 size_t cardputerChatMaxScroll(const NativeChatModel& chat, bool hasNotice);
+// Cached raw inputs from the most recent cardputerPoll(); readers never scan
+// the keyboard again or consume a different input edge during one frame.
+bool cardputerBootPressed();
+bool cardputerVoiceChordPressed();
 bool cardputerTalkPressed();
-int cardputerNavigation(); // -1 / +1 browse, 2 confirm; zero means no event
+// Semantic events collected by every poll(), including polls inside bounded
+// audio waits. Pop does not poll; suppression also clears old queued edges.
+uint8_t cardputerGesture();
+void cardputerSuppressGestureUntilReleased();
+int cardputerNavigation(); // -1/+1 browse, 2 confirm, 3 back, 4 mode; zero means no event
 uint32_t cardputerNavigationCount();
 NativeNavigationStats cardputerNavigationStats();
 bool cardputerNavigationPending();
@@ -56,12 +64,7 @@ struct CardputerRenderStats {
 };
 // Counters count actual completed sprite submissions, not draw() invocations.
 CardputerRenderStats cardputerRenderStats();
-void cardputerDraw(const uint8_t* monochrome, bool interaction,
-                   const NativeAgentSelection& selection, const NativeConversationView& view, const String& title,
-                   const String& hint, const String& address, bool socketReady,
-                   const String& selectionError, const NativeChatModel& chat,
-                   const char* chatStatus, const String& chatNotice, size_t bottomOffset,
-                   bool sending, bool historyMode, uint32_t chatRevision);
+void cardputerDraw(const CardputerPresentation& presentation);
 bool cardputerAudioBegin();
 bool cardputerSpeakerEnable(bool enable);
 bool cardputerAudioRate(uint32_t rate);

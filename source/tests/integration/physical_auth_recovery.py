@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Official isolated Studio/M5 auth recovery. Default is read-only preflight.
 
---execute tests signature invalidation/restoration ONLY on verified port19038.
-Actual45-second expiry remains a separately documented, unimplemented stage.
+--execute tests auth recovery ONLY on the verified isolated port19038.
+--stage time-expiry (default) tests actual45-second expiry with a new handshake;
+--stage signature-rotation preserves the separate signing-key recovery test.
 --restore-only recovers the private journal. No Studio/firmware is modified.
 Tokens, process environments and response bodies must never go to stdout.
 """
 import argparse
+import ast
 import base64
 import ctypes
 import datetime
@@ -26,8 +28,19 @@ import urllib.parse
 import urllib.request
 
 OFFICIAL_SHA256 = "2698df3d144d32b435d8b700dc53c0b79879e9041faed557f883d7a9dac93f0a"
+# Expected0.8.24 entry digest from the clean DMG's matching CodeResources.
+# Its actual JWT functions were reviewed/executed against expiry boundaries.
+# The installed09bbce... bytes do not match this seal and remain untrusted.
+APP_0824_SHA256 = "c04bfec6333a0e70d763ba93ec2fff7bf3f7b6241b6b75c4d5c1d57a571084e0"
+APP_0824_AUTH_CONTRACT_VERIFIED = True
 ALLOWED_PORT = 19038
 STARTUP_SECONDS = 180
+SHORT_TTL_SECONDS = 45
+EXPIRY_MARGIN_SECONDS = 2
+
+
+def official_hash(version):
+    return {"0.7.36": OFFICIAL_SHA256, "0.8.24": APP_0824_SHA256}.get(version)
 
 
 class Failure(RuntimeError):
@@ -127,17 +140,25 @@ def jwt_lifetime(token):
     return int(value["exp"]) - int(value["iat"])
 
 
+def jwt_expiry(token):
+    # Timing of an officially verified tester JWT only. Never read the M5 JWT.
+    part = token.split(".")[1]
+    value = json.loads(base64.urlsafe_b64decode(part + "=" * (-len(part) % 4)))
+    return int(value["exp"])
+
+
 def validate_manifest(manifest, home):
     url = urllib.parse.urlsplit(manifest["baseUrl"])
     require(url.scheme == "http" and url.hostname in ("127.0.0.1", "localhost") and
             url.port == ALLOWED_PORT and manifest["port"] == ALLOWED_PORT and
             not url.username and not url.password and not url.query and not url.fragment and
             url.path in ("", "/"), "Only the isolated loopback19038 instance is permitted")
-    require(manifest.get("version") == "0.7.36" and manifest["bridgePort"] == 19039,
+    expected = official_hash(manifest.get("version"))
+    require(expected is not None and manifest["bridgePort"] == 19039,
             "Unexpected official version or isolated bridge port")
     entry = Path(manifest["entry"]).resolve()
-    require(hashlib.sha256(entry.read_bytes()).hexdigest() == OFFICIAL_SHA256 and
-            manifest["serverSha256"] == OFFICIAL_SHA256, "Official server hash mismatch")
+    require(hashlib.sha256(entry.read_bytes()).hexdigest() == expected and
+            manifest["serverSha256"] == expected, "Official server hash mismatch")
     require(Path(manifest["workspace"]).resolve() == (home / "workspace").resolve(),
             "Workspace must remain inside the original private home")
 
@@ -162,10 +183,50 @@ def bundle_capabilities(entry):
     # This exact distributed bundle was independently audited for the ordinary
     # MCU /chat-run JWT path. A different build requires a fresh contract audit;
     # source-only logger statements must not be treated as binary capabilities.
-    known = hashlib.sha256(data).hexdigest() == OFFICIAL_SHA256
+    digest = hashlib.sha256(data).hexdigest()
+    known = digest == OFFICIAL_SHA256 or (digest == APP_0824_SHA256 and APP_0824_AUTH_CONTRACT_VERIFIED)
     markers = all(marker in data for marker in (b"[mcu-login] completed", b"[mcu-login] phase completed"))
     return {"nativeLoginLogMarkers": markers, "ordinaryChatJwtContractVerified": known,
             "globalAgentHasSeparateProcessLocalAgentToken": known}
+
+
+def official_bridge_process(argv, env, script, home):
+    """Exact stock broker argv, including Hermes venv_sync's isolated reexec.
+
+    Parse only bounded literal argv; never execute inspected process text. The
+    complete AST must match the reviewed runpy bootstrap, with no extra calls.
+    """
+    if env.get("HERMES_HOME") != str(home / "hermes") or \
+            env.get("HERMES_AGENT_BRIDGE_ENDPOINT") != "tcp://127.0.0.1:19039":
+        return False
+    root = env.get("HERMES_AGENT_ROOT", "")
+    if not root or not argv:
+        return False
+    try:
+        wrapped = len(argv) == 4 and argv[1:3] == ["-I", "-c"]
+        if wrapped:
+            if len(argv[3]) > 8192:
+                return False
+            tree = ast.parse(argv[3])
+            if len(tree.body) != 4 or not isinstance(tree.body[2], ast.Assign):
+                return False
+            arguments = ast.literal_eval(tree.body[2].value)
+        else:
+            arguments = argv[1:]
+        if not isinstance(arguments, list) or len(arguments) != 7 or \
+                not all(isinstance(value, str) and len(value) <= 4096 for value in arguments):
+            return False
+        if Path(arguments[0]).resolve() != script.resolve() or arguments[1:] != [
+                "--endpoint", "tcp://127.0.0.1:19039", "--agent-root", root,
+                "--hermes-home", str(home / "hermes")]:
+            return False
+        if wrapped:
+            expected = (f"import sys, runpy; sys.path.insert(0, {root!r}); sys.argv = {arguments!r}; "
+                        f"runpy.run_path({str(Path(arguments[0]).absolute())!r}, run_name='__main__')")
+            return ast.dump(tree) == ast.dump(ast.parse(expected))
+        return True
+    except (SyntaxError, ValueError, TypeError, RecursionError):
+        return False
 
 
 class NativeLoginAudit:
@@ -236,6 +297,7 @@ class Recovery:
         self.audit_path = self.home / "webui/logs/server.log"
         self.token_path = self.home / "webui/.token"
         self.original_environment = None
+        self.expected_environment = None
         self.report_path = report_path.resolve() if report_path else None
         if self.report_path:
             require(self.report_path.parent == (self.home.parent.parent / "evidence").resolve() and
@@ -246,22 +308,37 @@ class Recovery:
         self.last_uptime = None
         self.agent = None
         self.verified_auth_transition = False
+        self.machine_identity = None
         self.report = {"mode": "preflight", "productionPort8748Touched": False,
                        "physicalAuthTestExecuted": False, "chatRequests": 0, "paidVoiceCalls": 0,
-                       "m5ManualLoginRequests": 0, "hostMcuLoginRequests": 0,
+                       "m5ManualLoginRequests": None, "hostMcuLoginRequests": 0,
                        "timeExpiryStageExecuted": False,
                        "healthReauthCountersAvailable": False, "stages": [], "findings": []}
 
     def http(self, path, token=None, body=None, device=False, timeout=5):
-        headers = {"x-hermes-profile": self.original.get("profile", "default")}
+        # This harness may authenticate its observer account, never the MCU or
+        # provision/change the device. Make its zero-host-MCU-login claim a guard.
+        reads = ("/health", "/api/auth/me", "/api/mcu-devices", "/api/devices/link-info")
+        require((device and path == "" and body is None and token is None) or
+                (not device and ((body is None and path in reads) or
+                                 (body is not None and path == "/api/auth/login"))),
+                "Request is outside the isolated read/observer-login contract")
+        headers = {"x-hermes-profile": self.original.get("profile", "default"),
+                   "Cache-Control": "no-cache, no-store", "Pragma": "no-cache"}
         if token:
             headers["Authorization"] = "Bearer " + token
         if body is not None:
             headers["Content-Type"] = "application/json"
-        request = urllib.request.Request(self.device_url if device else self.original["baseUrl"] + path,
+        url = self.device_url if device else self.original["baseUrl"].rstrip("/") + path
+        if body is None:
+            parts = urllib.parse.urlsplit(url)
+            query = urllib.parse.parse_qsl(parts.query, keep_blank_values=True)
+            query.append(("_cardputer_auth_probe", secrets.token_hex(12)))
+            url = urllib.parse.urlunsplit(parts._replace(query=urllib.parse.urlencode(query)))
+        request = urllib.request.Request(url,
                                         data=None if body is None else json.dumps(body).encode(), headers=headers)
         try:
-            with urllib.request.build_opener(NoRedirect()).open(request, timeout=timeout) as response:
+            with urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect()).open(request, timeout=timeout) as response:
                 return response.status, response.read()
         except urllib.error.HTTPError as error:
             error.close()
@@ -280,6 +357,8 @@ class Recovery:
                 "Isolated process executable or entry mismatch")
         validate_manifest(self.original, self.home)
         validate_environment(env, self.home)
+        expected = getattr(self, "expected_environment", None)
+        require(expected is None or env == expected, "Isolated process environment changed after launch")
         if self.birth:
             require(stamp[1] == self.birth, "Isolated PID was reused")
         return stamp, env
@@ -298,6 +377,18 @@ class Recovery:
         return value, all(connection.get(key) is True for key in
                           ("namespace_ready", "management_online", "saved_binding_matches")) and \
             connection.get("http_port") == ALLOWED_PORT
+
+    def verify_machine_identity(self):
+        status, body = self.http("/api/devices/link-info")
+        require(status == 200, "Official machine identity is unavailable")
+        row = json.loads(body)
+        identity = (row.get("device_id"), row.get("endpoint_kind"), row.get("http_port"))
+        require(all(isinstance(value, str) and value and len(value) <= 255 for value in identity[:2]) and
+                type(identity[2]) is int and identity[2] == ALLOWED_PORT,
+                "Official machine identity is incomplete or on an unexpected port")
+        require(self.machine_identity is None or identity == self.machine_identity,
+                "Official machine identity changed; recovery attribution is invalid")
+        return identity
 
     def presence(self):
         status, body = self.http("/api/mcu-devices", self.host_jwt)
@@ -326,8 +417,7 @@ class Recovery:
         for pid in listeners(19039):
             argv, env = process_arguments(pid)
             script = Path(self.original["entry"]).parent / "agent-bridge/python/hermes_bridge.py"
-            require(any(Path(arg).resolve() == script.resolve() for arg in argv if not arg.startswith("-")) and
-                    Path(env.get("HERMES_HOME", "")).resolve() == (self.home / "hermes").resolve(),
+            require(official_bridge_process(argv, env, script, self.home),
                     "Unknown bridge19039 occupant; it will not be stopped or reused")
 
     def native_audit(self):
@@ -350,7 +440,9 @@ class Recovery:
                     "Preflight requires the original default secret and default lifetime")
         self.birth = stamp[1]
         self.original_environment = env
+        self.expected_environment = dict(env)
         require(self.http("/health")[0] == 200, "Official Studio health failed")
+        self.machine_identity = self.verify_machine_identity()
         require(self.http("/api/auth/me", self.original["userJwt"])[0] == 200,
                 "Saved original JWT is not accepted")
         health, ready = self.device_health()
@@ -364,8 +456,8 @@ class Recovery:
         require(self.capabilities["nativeLoginLogMarkers"] or self.capabilities["ordinaryChatJwtContractVerified"],
                 "Neither native audit nor the pinned ordinary-JWT observation contract is available")
         self.verify_bridge()
-        self.report.update({"preflightPassed": True, "officialVersion": "0.7.36",
-                            "serverSha256": OFFICIAL_SHA256, "isolatedPid": self.pid,
+        self.report.update({"preflightPassed": True, "officialVersion": self.original["version"],
+                            "serverSha256": self.original["serverSha256"], "isolatedPid": self.pid,
                             "startupBudgetSeconds": STARTUP_SECONDS, "originalJwtHttp": 200,
                             "m5Target19038": True, "m5DualNamespaceReady": True,
                             "savedBindingMatches": True, "nativePresenceOnline": True,
@@ -420,6 +512,7 @@ class Recovery:
 
     def start(self, environment):
         require(not listeners(ALLOWED_PORT), "Refusing a duplicate19038 instance")
+        validate_manifest(self.original, self.home)
         validate_environment(environment, self.home)
         self.verify_bridge()  # Read-only ownership check; never kill an unknown listener.
         log = self.home / "server.private.log"
@@ -429,8 +522,9 @@ class Recovery:
                                      cwd=self.original["workspace"], env=environment,
                                      stdout=stream, stderr=subprocess.STDOUT, start_new_session=True)
         self.pid, self.birth = child.pid, None
+        self.expected_environment = dict(environment)
         self.owned[child.pid] = child
-        self.save_state(currentPid=self.pid, currentBirth=None)
+        self.save_state(currentPid=self.pid, currentBirth=None, currentEnvironment=dict(environment))
         private_json(self.path, {**self.original, "pid": self.pid})
         deadline = time.monotonic() + STARTUP_SECONDS
         while time.monotonic() < deadline:
@@ -440,6 +534,7 @@ class Recovery:
                     stamp, _ = self.verify_process()
                     self.birth = stamp[1]
                     self.save_state(currentBirth=self.birth)
+                    self.verify_machine_identity()
                     return
             except OSError:
                 pass
@@ -503,7 +598,8 @@ class Recovery:
         self.report["restoration"].update(**recovered, deviceRecoveryVerified=True)
         self.save_state(normalRestored=True, phase="restored")
 
-    def execute(self):
+    def execute(self, stage="time-expiry"):
+        require(stage in ("signature-rotation", "time-expiry"), "Unknown authentication test stage")
         self.preflight()
         if self.journal.exists():
             previous = json.loads(self.journal.read_text())
@@ -511,25 +607,20 @@ class Recovery:
         self.state = {"originalManifest": self.original, "originalEnvironment": self.original_environment,
                       "currentPid": self.pid, "currentBirth": self.birth,
                       "baselineAgent": self.agent, "baselineDeviceUptime": self.last_uptime,
+                      "baselineMachineIdentity": getattr(self, "machine_identity", None),
                       "tokenHash": hashlib.sha256(self.token_path.read_bytes()).hexdigest(),
                       "normalRestored": False, "temporaryBindingObserved": False, "phase": "prepared"}
         self.save_state()
         self.allow_management_login = True
-        self.report.update(mode="execute", physicalAuthTestExecuted=True)
+        self.report.update(mode="execute", authStage=stage, physicalAuthTestExecuted=True)
         temporary = dict(self.original_environment)
         temporary["AUTH_JWT_SECRET"] = secrets.token_urlsafe(48)
         try:
-            self.save_state(phase="signature-invalidation-starting")
-            audit = self.native_audit()
-            self.stop(); self.start(temporary)
-            require(self.http("/api/auth/me", self.original["userJwt"])[0] == 401,
-                    "Original signature was not invalidated")
-            self.verified_auth_transition = True
-            require(self.management_login() == 30 * 24 * 3600, "Default lifetime changed unexpectedly")
-            first = self.wait_m5(audit)
-            self.report["stages"].append({"name": "signature invalidation", "oldJwtHttp": 401, **first})
-            self.save_state(temporaryBindingObserved=True, phase="signature-recovered")
-            self.report["authenticationChecksPassed"] = True
+            if stage == "time-expiry":
+                self.execute_time_expiry(temporary)
+                self.report["authenticationChecksPassed"] = True
+            else:
+                self.execute_signature_rotation(temporary)
         finally:
             try:
                 self.save_state(phase="restoring-normal-environment")
@@ -538,6 +629,67 @@ class Recovery:
             self.restore()
         self.report["passed"] = True
         return self.report
+
+    def execute_signature_rotation(self, temporary):
+        self.save_state(phase="signature-invalidation-starting")
+        audit = self.native_audit()
+        self.stop(); self.start(temporary)
+        require(self.http("/api/auth/me", self.original["userJwt"])[0] == 401,
+                "Original signature was not invalidated")
+        self.verified_auth_transition = True
+        require(self.management_login() == 30 * 24 * 3600, "Default lifetime changed unexpectedly")
+        first = self.wait_m5(audit)
+        self.report["stages"].append({"name": "signature invalidation", "oldJwtHttp": 401, **first})
+        self.save_state(temporaryBindingObserved=True, phase="signature-recovered")
+        self.report["authenticationChecksPassed"] = True
+
+    def execute_time_expiry(self, temporary):
+        # A TTL setting cannot shorten the M5's existing30-day JWT. Establish a
+        # short-token baseline by one explicit preparation-only key rotation.
+        # The actual expiry transition below keeps this exact secret and home.
+        temporary["HERMES_WEB_UI_AUTH_JWT_EXPIRES_IN"] = str(SHORT_TTL_SECONDS) + "s"
+        self.save_state(phase="short-token-preparation-starting")
+        audit = self.native_audit()
+        self.stop(); self.start(temporary)
+        require(self.http("/api/auth/me", self.original["userJwt"])[0] == 401,
+                "Original signature was not invalidated during short-token preparation")
+        self.verified_auth_transition = True
+        require(self.management_login() == SHORT_TTL_SECONDS, "Short JWT lifetime was not accepted")
+        prepared = self.wait_m5(audit)
+        self.report["stages"].append({"name": "short-token preparation", "expiryAcceptance": False,
+                                       "ttlSeconds": SHORT_TTL_SECONDS, **prepared})
+        self.save_state(temporaryBindingObserved=True, phase="short-token-prepared")
+        # Issue/verify a timing witness after M5 recovery, then stop the server
+        # throughout expiry. No M5 can silently renew again during this gap.
+        require(self.management_login() == SHORT_TTL_SECONDS, "Short JWT timing witness was not accepted")
+        witness = self.host_jwt
+        expires = jwt_expiry(witness)
+        audit = self.native_audit()
+        self.verified_auth_transition = False
+        self.stop()
+        stopped_at = time.monotonic()
+        wait_seconds = SHORT_TTL_SECONDS + EXPIRY_MARGIN_SECONDS
+        self.save_state(phase="waiting-for-real-expiry")
+        while True:
+            remaining = wait_seconds - (time.monotonic() - stopped_at)
+            if remaining <= 0:
+                break
+            time.sleep(min(1, remaining))
+        require(time.time() >= expires + EXPIRY_MARGIN_SECONDS,
+                "Wall clock changed; real token expiry is inconclusive")
+        self.report["timeExpiryStageExecuted"] = True
+        self.start(temporary)  # exact same secret/TTL; forces fresh TCP handshake
+        require(self.http("/api/auth/me", witness)[0] == 401,
+                "Expired JWT was still accepted after the fresh handshake restart")
+        self.verified_auth_transition = True
+        require(self.management_login() == SHORT_TTL_SECONDS,
+                "Signing environment or short lifetime changed during expiry test")
+        recovered = self.wait_m5(audit)
+        self.report["stages"].append({"name": "time expiry", "oldJwtHttp": 401,
+            "ttlSeconds": SHORT_TTL_SECONDS, "serverStoppedAcrossExpiry": True,
+            "signingEnvironmentUnchangedDuringExpiry": True, "machineIdentityUnchanged": True,
+            "forcedFreshHandshake": True, "minimumStoppedSeconds": wait_seconds, **recovered})
+        self.save_state(phase="time-expiry-recovered")
 
     def restore_only(self):
         require(self.journal.is_file(), "No private recovery journal exists")
@@ -550,6 +702,9 @@ class Recovery:
                 not self.original_environment.get("HERMES_WEB_UI_AUTH_JWT_EXPIRES_IN"),
                 "Journal does not contain a default-auth baseline")
         self.pid, self.birth = self.state["currentPid"], self.state.get("currentBirth")
+        self.expected_environment = self.state.get("currentEnvironment")
+        identity = self.state.get("baselineMachineIdentity")
+        self.machine_identity = tuple(identity) if identity is not None else None
         self.agent, self.last_uptime = self.state.get("baselineAgent"), self.state.get("baselineDeviceUptime")
         self.report["mode"] = "restore-only"
         self.restore()
@@ -563,6 +718,8 @@ def main():
     parser.add_argument("--device-state", type=Path, required=True, help="Private health snapshot; only its IP is used")
     parser.add_argument("--nvs-values", type=Path, required=True, help="Private identity snapshot; never printed")
     parser.add_argument("--report", type=Path, help="Optional sanitized evidence output")
+    parser.add_argument("--stage", choices=("time-expiry", "signature-rotation"), default="time-expiry",
+                        help="Executed auth transition; preflight alone never restarts or logs in")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--execute", action="store_true")
     mode.add_argument("--restore-only", action="store_true")
@@ -580,7 +737,7 @@ def main():
                     raise KeyboardInterrupt()
                 old_term = signal.signal(signal.SIGTERM, interrupted)
                 try:
-                    result = run.execute() if args.execute else run.restore_only()
+                    result = run.execute(args.stage) if args.execute else run.restore_only()
                 finally:
                     signal.signal(signal.SIGTERM, old_term)
             finally:
@@ -596,9 +753,9 @@ def main():
     result["checkedAtUtc"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
     result["limitations"] = ["Health has no native reauth counters. Counts are null when markers are absent from the actual distributed bundle.",
                              "Native-login attribution requires exclusive M5 use of the isolated instance.",
-                             "Observed renewal is an inference from a controlled signing-key transition, new-server ordinary /chat-run ACK, live TCP/presence and no host MCU login or manual device login.",
+                             "Without official audit markers renewal is inferred from the verified auth transition, new-server ordinary /chat-run ACK, live TCP/presence and no host MCU login or manual device login.",
                              "/global-agent additionally accepts a separate process-local agent token; presence alone is insufficient to prove a new user JWT.",
-                             "M5 JWT contents are not read. The actual45-second time-expiry stage is not implemented or executed by this entry point.",
+                             "M5 JWT contents are not read. Time expiry first establishes a short-token baseline by preparation-only signing-key rotation; the actual expiry gap keeps the same signing environment.",
                              "An idle authenticated WebSocket need not disconnect at JWT exp; expiry is tested by a new handshake.",
                              "Authentication recovery does not independently verify a model response or physical audio."]
     if args.report and run:

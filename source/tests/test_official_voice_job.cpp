@@ -128,6 +128,11 @@ Output drain(Job& job,std::vector<int16_t>& samples) {
   });return output;
 }
 void budget() {
+  auto binding=context();
+  assert(taskStackBytes(Type::Stt,binding)==16*1024&&taskStackBytes(Type::Tts,binding)==32*1024);
+  assert(makeContext(binding,"https://studio.test:8650","fixture.jwt-token","default","session",81)==Error::Ok);
+  assert(taskStackBytes(Type::Stt,binding)==32*1024&&taskStackBytes(Type::Tts,binding)==32*1024);
+  assert(kTtsTaskStackBytes>=official_voice::AudioDecoder::recommendedTaskStackBytes());
   official_voice::detail::NetworkBudget clock(1000,100);
   assert(clock.remaining(1040)==60);clock.pause(1040);
   assert(clock.remaining(1000040)==60);clock.resume(1000040);
@@ -272,6 +277,8 @@ void validationAndMemory() {
   evidence=std::make_shared<Evidence>();auto fake=transport(wave(4),evidence);failAfter=0;
   const auto failedStart=job.startTts(binding,"x",std::move(fake));failAfter=-1;
   assert(failedStart==StartResult::NoMemory&&!job.busy()&&evidence->destroyed);
+  assert(job.lastStartStage()==StartStage::StateAllocation&&job.lastStartResult()==StartResult::NoMemory);
+  assert(!job.lastStartDiagnostics().resourcesAvailable);
   // A valid state followed by decoder allocation failure is an explicit result.
   evidence=std::make_shared<Evidence>();fake=transport(wave(4),evidence);failAfter=1;
   const auto decoderStart=job.startTts(binding,"x",std::move(fake));assert(decoderStart==StartResult::Started);

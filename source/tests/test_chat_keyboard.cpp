@@ -20,6 +20,16 @@ int main() {
   assert(nativeChatKey('a', 'a', mods, true).kind == NativeChatKeyKind::Insert);
   assert(nativeChatKey(0x28, 0x28, mods, true).kind == NativeChatKeyKind::ToggleHistory);
   assert(nativeChatKey(0x28, 0x28, mods).kind == NativeChatKeyKind::Send);
+  mods.ctrl = true;
+  assert(nativeChatKey(0x28, 0x28, mods).kind == NativeChatKeyKind::AcknowledgeSend);
+  assert(nativeChatKey(0x28, 0x28, mods, true).kind == NativeChatKeyKind::AcknowledgeSend);
+  mods.shift = true;
+  assert(nativeChatKey(0x28, 0x28, mods).kind == NativeChatKeyKind::Newline);
+  mods.shift = false; mods.fn = true;
+  assert(nativeChatKey(0x28, 0x28, mods).kind == NativeChatKeyKind::Newline);
+  mods.fn = false; mods.alt = true;
+  assert(nativeChatKey(0x28, 0x28, mods).kind == NativeChatKeyKind::None);
+  mods = {};
   assert(nativeChatKey('`', '`', mods).kind == NativeChatKeyKind::None);
   mods.shift = true;
   assert(nativeChatKey(0x28, 0x28, mods).kind == NativeChatKeyKind::Newline);
@@ -101,7 +111,7 @@ int main() {
   keys = {}; mods = {};
   keys[39].down = true; keys[39].base = ';'; keys[39].character = ';';
   chord.update(keys, mods, true, 0);
-  assert(chord.pop(event) && event.kind == NativeChatKeyKind::Insert);
+  assert(!chord.pop(event) && chord.pending());
   mods.fn = true; chord.update(keys, mods, true, 1);
   assert(chord.pop(event) && event.kind == NativeChatKeyKind::ScrollUp);
   chord.update(keys, mods, true, 2); assert(!chord.pop(event));
@@ -186,5 +196,95 @@ int main() {
   keys[55].down = false; controls.update(keys, mods, true, 5001);
   keys[55].down = true; controls.update(keys, mods, true, 5002);
   assert(controls.pop(event) && event.kind == NativeChatKeyKind::ToggleChinese);
-  std::cout << "Physical keyboard: typing, modifiers, mode edges, repeat and overflow passed\n";
+  // Printed direction legends stay exact ASCII when tapped, while Fn may
+  // claim them during the 20ms grace period before any draft mutation.
+  const uint8_t bases[] = {',', '/', ';', '.'};
+  const uint8_t shifted[] = {'<', '?', ':', '>'};
+  const NativeChatKeyKind directions[] = {NativeChatKeyKind::Left, NativeChatKeyKind::Right,
+      NativeChatKeyKind::ScrollUp, NativeChatKeyKind::ScrollDown};
+  for (size_t i = 0; i < 4; ++i) {
+    NativeChatKeyboard tap;
+    keys = {}; mods = {}; mods.shift = true;
+    keys[4].base = bases[i]; keys[4].character = shifted[i]; keys[4].down = true;
+    tap.update(keys, mods, true, 0); assert(!tap.pop(event));
+    tap.update(keys, mods, true, 19); assert(!tap.pop(event));
+    tap.update(keys, mods, true, 20);
+    assert(tap.pop(event) && event.kind == NativeChatKeyKind::Insert && event.character == shifted[i]);
+    mods.fn = true; tap.update(keys, mods, true, 21);
+    assert(!tap.pop(event)); // Already resolved printables cannot become a second action.
+    tap.update(keys, mods, true, 2000); assert(!tap.pop(event));
+
+    NativeChatKeyboard fast;
+    keys[4].down = true; mods = {};
+    fast.update(keys, mods, true, 0); assert(!fast.pop(event));
+    keys[4].down = false; fast.update(keys, mods, true, 1);
+    assert(fast.pop(event) && event.character == shifted[i] && !fast.pop(event));
+
+    NativeChatKeyboard late;
+    keys[4].down = true;
+    late.update(keys, mods, true, 0); assert(!late.pop(event));
+    mods.fn = true; late.update(keys, mods, true, 15);
+    assert(late.pop(event) && event.kind == directions[i] && !late.pop(event));
+    late.update(keys, mods, true, 419); assert(!late.pop(event));
+    late.update(keys, mods, true, 420); assert(late.pop(event) && event.kind == directions[i]);
+    late.update(keys, mods, true, 509); assert(!late.pop(event));
+    late.update(keys, mods, true, 510); assert(late.pop(event) && event.kind == directions[i]);
+    keys[4].down = false; mods.fn = false; late.update(keys, mods, true, 511);
+    assert(!late.pop(event) && !late.pending());
+  }
+
+  NativeChatKeyboard lateVoice;
+  keys = {}; mods = {};
+  keys[55].down = true; keys[55].base = keys[55].character = ' ';
+  lateVoice.update(keys, mods, true, 100); assert(lateVoice.pending());
+  mods.fn = true; lateVoice.update(keys, mods, true, 115);
+  assert(!lateVoice.pop(event) && !lateVoice.pending() && lateVoice.pressed() == 0);
+  keys[55].down = false; mods.fn = false; lateVoice.update(keys, mods, true, 116);
+  assert(!lateVoice.pop(event));
+
+  // The SDK omits printable metadata for released keys. A modifier and
+  // release on the same scan still resolve the saved physical base safely.
+  NativeChatKeyboard releasedChord;
+  keys = {}; mods = {};
+  keys[4].base = keys[4].character = '/'; keys[4].down = true;
+  releasedChord.update(keys, mods, true, 0);
+  keys = {}; mods.fn = true; releasedChord.update(keys, mods, true, 15);
+  assert(releasedChord.pop(event) && event.kind == NativeChatKeyKind::Right);
+  assert(!releasedChord.pop(event));
+
+  NativeChatKeyboard fastSpace;
+  keys = {}; mods = {}; keys[55].base = keys[55].character = ' ';
+  keys[55].down = true; fastSpace.update(keys, mods, true, 0);
+  keys[55].down = false; fastSpace.update(keys, mods, true, 1);
+  assert(fastSpace.pop(event) && event.kind == NativeChatKeyKind::Insert && event.character == ' ');
+  assert(!fastSpace.pop(event));
+
+  NativeChatKeyboard modePending;
+  keys[4].base = keys[4].character = ';'; keys[4].down = true;
+  modePending.update(keys, mods, true, 0); assert(modePending.pending());
+  modePending.update(keys, mods, true, 1, false, true);
+  assert(!modePending.pop(event) && !modePending.pending());
+  modePending.update(keys, mods, true, 1000, true, false);
+  assert(!modePending.pop(event) && !modePending.pending());
+
+  NativeChatKeyboard ordered;
+  keys = {}; keys[4].base = keys[4].character = ','; keys[4].down = true;
+  ordered.update(keys, mods, true, 0);
+  keys[7].base = 'a'; keys[7].character = 'A'; keys[7].down = true; mods.shift = true;
+  ordered.update(keys, mods, true, 1);
+  assert(ordered.pop(event) && event.character == ',');
+  assert(ordered.pop(event) && event.character == 'A' && !ordered.pop(event));
+
+  NativeChatKeyboard acknowledgement;
+  keys = {}; mods = {}; mods.ctrl = true;
+  keys[41].base = keys[41].character = 0x28; keys[41].down = true;
+  acknowledgement.update(keys, mods, true, 0);
+  assert(acknowledgement.pop(event) && event.kind == NativeChatKeyKind::AcknowledgeSend);
+  acknowledgement.update(keys, mods, true, 5000); assert(!acknowledgement.pop(event));
+  mods.ctrl = false; acknowledgement.update(keys, mods, true, 5001);
+  assert(!acknowledgement.pop(event)); // Releasing Ctrl cannot turn held OK into Send.
+  keys[41].down = false; acknowledgement.update(keys, mods, true, 5002);
+  keys[41].down = true; acknowledgement.update(keys, mods, true, 5003);
+  assert(acknowledgement.pop(event) && event.kind == NativeChatKeyKind::Send);
+  std::cout << "Physical keyboard: typing, modifiers, mode edges, chord grace, repeat and overflow passed\n";
 }

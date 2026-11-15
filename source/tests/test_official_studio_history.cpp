@@ -11,6 +11,7 @@
 #include <new>
 #include <string>
 #include <thread>
+#include <vector>
 
 namespace {
 std::atomic<int> failAfter{-1};
@@ -44,9 +45,10 @@ std::string quote(const std::string& input) {
   }
   return output+'"';
 }
-Input input(uint32_t offset=0,uint32_t byteOffset=0,const char* session="session-1",const char* profile="default") {
+Input input(uint32_t offset=0,uint32_t byteOffset=0,const char* session="session-1",const char* profile="default",
+            bool allowLocalAbsence=false) {
   Input value;
-  assert(makeInput(value,"http://127.0.0.1:19036","test.jwt-fixture",profile,session,27,offset,byteOffset)==Result::Ok);
+  assert(makeInput(value,"http://127.0.0.1:19036","test.jwt-fixture",profile,session,27,offset,byteOffset,allowLocalAbsence)==Result::Ok);
   return value;
 }
 std::string page(const std::string& text="你好",uint32_t total=1,uint32_t offset=0,
@@ -70,7 +72,7 @@ class Fixture final:public Transport {
   Flag* cancelAtEnd=nullptr;
   bool get(const Request& request,ResponseSink& sink)override {
     ++calls;path=request.path;
-    assert(request.timeoutMs==8000&&request.input&&validInput(*request.input));
+    assert(request.timeoutMs>0&&request.timeoutMs<=8000&&request.input&&validInput(*request.input));
     Headers headers;headers.status=status;headers.contentType=type;headers.contentEncoding=encoding;
     headers.contentLength=declared==-2?int64_t(body.size()):declared;
     if(!sink.begin(headers))return false;
@@ -85,6 +87,108 @@ class Fixture final:public Transport {
     return complete;
   }
 };
+class MissingConversation final:public Transport {
+ public:
+  std::vector<std::string> paths;
+  std::vector<uint16_t> budgets;
+  std::string proofBody="{\"error\":\"Session not found\"}";
+  int pageStatus=500,proofStatus=404;
+  const char* proofType="application/json; charset=utf-8";
+  const char* proofEncoding=nullptr;
+  int64_t proofDeclared=-2;size_t proofStep=7,proofLimit=SIZE_MAX;
+  bool proofComplete=true,proofDuplicateBegin=false;
+  Flag* cancelAfterPage=nullptr;Flag* cancelAfterProof=nullptr;
+  uint32_t pageDelayMs=0,proofDelayMs=0;
+  bool get(const Request& request,ResponseSink& sink)override {
+    paths.emplace_back(request.path);
+    budgets.push_back(request.timeoutMs);
+    const bool detail=paths.size()==2;
+    // Actual signed0.8.24: unknown UUID pagination falls through Hermes and
+    // responds500 text/plain21B; the local-only detail route is404 JSON29B.
+    const uint32_t delay=detail?proofDelayMs:pageDelayMs;
+    if(delay)std::this_thread::sleep_for(std::chrono::milliseconds(delay));
+    Fixture response(detail?proofBody:"Internal Server Error");
+    response.status=detail?proofStatus:pageStatus;response.type=detail?proofType:"text/plain; charset=utf-8";
+    if(detail){response.encoding=proofEncoding;response.declared=proofDeclared;response.step=proofStep;
+      response.limit=proofLimit;response.complete=proofComplete;response.duplicateBegin=proofDuplicateBegin;}
+    const bool completed=response.get(request,sink);
+    Flag* flag=detail?cancelAfterProof:cancelAfterPage;if(flag)flag->value=true;
+    return completed;
+  }
+};
+void missingSessionProof() {
+  auto request=input(0,0,"session-1","default",true);MissingConversation transport;
+  assert(request.allowLocalAbsence);
+  auto result=resolve(request,transport);
+  assert(result.result==Result::Empty&&result.httpCode==404&&!result.snapshot);
+  assert(transport.paths.size()==2);
+  assert(transport.paths[1]=="/api/studio/sessions/session-1?profile=default");
+  auto remote=input(0,0,"m5-remote-legacy");MissingConversation legacy;
+  result=resolve(remote,legacy);
+  assert(result.result==Result::Transient&&result.httpCode==500&&!result.snapshot&&legacy.paths.size()==1);
+  MissingConversation legacy404;legacy404.pageStatus=404;result=resolve(remote,legacy404);
+  assert(result.result==Result::Transient&&result.httpCode==404&&legacy404.paths.size()==1);
+  MissingConversation page404;page404.pageStatus=404;result=resolve(request,page404);
+  assert(result.result==Result::Empty&&result.httpCode==404&&page404.paths.size()==2);
+  for(size_t step:{size_t(1),size_t(2),size_t(7),size_t(4096)}) {
+    MissingConversation split;split.proofStep=step;split.proofDeclared=-1;
+    result=resolve(request,split);assert(result.result==Result::Empty&&!result.snapshot);
+  }
+  auto encoded=input(0,0,"owned /?%","scope 中");encoded.allowLocalAbsence=true;
+  MissingConversation scoped;result=resolve(encoded,scoped);assert(result.result==Result::Empty);
+  assert(scoped.paths[1]=="/api/studio/sessions/owned%20%2F%3F%25?profile=scope%20%E4%B8%AD");
+}
+void missingProofFailures() {
+  auto request=input();request.allowLocalAbsence=true;
+  for(const auto& body:{std::string("{\"error\":\"Profile not found\"}"),std::string("{}"),std::string("[]"),
+      std::string("{\"error\":null}"),std::string("{\"error\":\"Session not found\",\"error\":\"Session not found\"}"),
+      std::string("{\"error\":\"Session not found\",\"session\":{\"id\":\"foreign\"}}"),
+      std::string("{\"error\":\"Session not found\\u0000\"}"),std::string("{\"error\":\"Session not found\"} trailing"),
+      std::string("{\"error\":\"")+std::string(1200,'x')+"\"}"}) {
+    MissingConversation invalid;invalid.proofBody=body;auto result=resolve(request,invalid);
+    assert(result.result==Result::Invalid&&!result.snapshot);
+  }
+  for(int status:{401,403,408,429,500,503,302}) {
+    MissingConversation denied;denied.proofStatus=status;
+    const auto result=resolve(request,denied);
+    const Result wanted=status==401?Result::AuthInvalid:
+        (status==408||status==429||status>=500)?Result::Transient:Result::Invalid;
+    assert(result.result==wanted&&result.httpCode==status&&!result.snapshot);
+  }
+  for(int status:{401,403,302,429}) {
+    MissingConversation original;original.pageStatus=status;
+    const auto result=resolve(request,original);
+    assert(result.result!=Result::Empty&&original.paths.size()==1&&!result.snapshot);
+  }
+  MissingConversation exists;exists.proofStatus=200;exists.proofBody=std::string(1024*1024,'x');
+  auto result=resolve(request,exists);
+  assert(result.result==Result::Transient&&result.httpCode==500&&!result.snapshot);
+  MissingConversation html;html.proofType="text/html";assert(resolve(request,html).result==Result::Invalid);
+  MissingConversation gzip;gzip.proofEncoding="gzip";assert(resolve(request,gzip).result==Result::Invalid);
+  MissingConversation excessive;excessive.proofDeclared=1025;assert(resolve(request,excessive).result==Result::Invalid);
+  MissingConversation twice;twice.proofDuplicateBegin=true;assert(resolve(request,twice).result==Result::Invalid);
+  MissingConversation shortBody;shortBody.proofDeclared=int64_t(shortBody.proofBody.size()+1);
+  assert(resolve(request,shortBody).result==Result::Transient);
+  MissingConversation incomplete;incomplete.proofComplete=false;
+  assert(resolve(request,incomplete).result==Result::Transient);
+  Flag flag;MissingConversation cancelledBeforeProof;cancelledBeforeProof.cancelAfterPage=&flag;
+  assert(resolve(request,cancelledBeforeProof,&flag).result==Result::Cancelled&&cancelledBeforeProof.paths.size()==1);
+  flag.value=false;MissingConversation cancelledProof;cancelledProof.cancelAfterProof=&flag;
+  assert(resolve(request,cancelledProof,&flag).result==Result::Cancelled);
+  for(const auto& oldScope:{input(1),input(0,1)}) {
+    auto old=oldScope;old.allowLocalAbsence=true;MissingConversation notNew;
+    assert(resolve(old,notNew).result==Result::Transient&&notNew.paths.size()==1);
+  }
+  MissingConversation noMemory;failAfter=3;result=resolve(request,noMemory);failAfter=-1;
+  assert(result.result==Result::NoMemory&&!result.snapshot&&noMemory.paths.size()==1);
+}
+void missingProofDeadline() {
+  auto request=input();request.allowLocalAbsence=true;
+  MissingConversation late;late.pageDelayMs=25;late.proofDelayMs=kTimeoutMs;
+  const auto result=resolve(request,late);
+  assert(late.budgets.size()==2&&late.budgets[0]==kTimeoutMs&&late.budgets[1]<kTimeoutMs);
+  assert(result.result==Result::Transient&&!result.snapshot); // Full correct404 arrived too late.
+}
 void validPages() {
   auto request=input();
   for(size_t step:{size_t(1),size_t(2),size_t(7),size_t(113),size_t(65536)}) {
@@ -155,7 +259,7 @@ void invalidBodies() {
 }
 void transportErrors() {
   const auto request=input();
-  for(auto entry:{std::make_pair(401,Result::AuthInvalid),std::make_pair(404,Result::Empty),
+  for(auto entry:{std::make_pair(401,Result::AuthInvalid),std::make_pair(404,Result::Transient),
       std::make_pair(403,Result::Invalid),std::make_pair(302,Result::Invalid),std::make_pair(400,Result::Invalid),
       std::make_pair(-1,Result::Transient),std::make_pair(408,Result::Transient),std::make_pair(429,Result::Transient),
       std::make_pair(503,Result::Transient)}) {
@@ -206,8 +310,9 @@ void inputsAndMemory() {
   assert(makeInput(value,value.baseUrl.data(),value.userJwt.data(),value.session.data(),value.profile.data(),28,9,1024)==Result::Ok);
   assert(!std::strcmp(value.profile.data(),"session-1")&&!std::strcmp(value.session.data(),"default"));
   for(const char* base:{"ftp://host","http:///host","http://user@host","http://host?x","http://host#x","http://host\\evil","http://host\r\nX:"}) {
+    value.allowLocalAbsence=true;
     assert(makeInput(value,base,"test.jwt","default","s",1)==Result::Invalid);
-    assert(value.epoch==0&&!value.userJwt[0]&&!value.session[0]);
+    assert(value.epoch==0&&!value.userJwt[0]&&!value.session[0]&&!value.allowLocalAbsence);
   }
   for(const char* text:{""," ","　"," ","\xef\xbb\xbf","bad\nvalue","\xc0\xaf"})
     assert(makeInput(value,"http://host","test.jwt",text,"s",1)==Result::Invalid);
@@ -305,9 +410,13 @@ void jobs() {
     assert(job.start(request,std::unique_ptr<Transport>(new Fixture(page())))==StartResult::Started);
     output=awaitReady(job);assert(output.result==Result::Ok&&output.snapshot);
   }
+  auto local=input(0,0,"session-1","default",true);
+  assert(job.start(local,std::unique_ptr<Transport>(new MissingConversation))==StartResult::Started);
+  output=awaitReady(job);assert(output.result==Result::Empty&&output.httpCode==404&&!output.snapshot);
 }
 } // namespace
 int main() {
+  missingSessionProof();missingProofFailures();missingProofDeadline();
   validPages();invalidBodies();transportErrors();longMessages();inputsAndMemory();jobs();
   std::printf("Official Studio history tests passed; Input=%zu Output=%zu Snapshot=%zu Reader=%zu bytes\n",
       sizeof(Input),sizeof(Output),sizeof(Snapshot),sizeof(bounded_json::Reader<32,256,64>));

@@ -1,5 +1,6 @@
 #include "NavigationInput.h"
 #include "AgentSelection.h"
+#include "ChatKeyboard.h"
 #include <cassert>
 #include <iostream>
 #include <string>
@@ -7,7 +8,7 @@
 NativeNavigationKeys keys(const std::string& pressed, bool enter = false) {
   return nativeNavigationKeys([&](char key) {
     return pressed.find(key) != std::string::npos;
-  }, enter);
+  }, enter, pressed.find('\t') != std::string::npos);
 }
 
 int main() {
@@ -102,5 +103,41 @@ int main() {
     }
     assert(selection.browse == 0);
   }
-  std::cout << "Four arrows: physical legends, modifier layers, edges, FIFO, counters and 16-agent wrap passed\n";
+  NativeNavigationInput homeMode;
+  homeMode.update(keys("+")); // ASCII '+' overlaps HID Tab but is never mode.
+  assert(homeMode.pop() == 0);
+  homeMode.update(keys("\t"));
+  assert(homeMode.pop() == 4 && homeMode.pop() == 0);
+  homeMode.update(keys("\t")); assert(homeMode.pop() == 0);
+  homeMode.update(keys("")); homeMode.update(keys("\t"));
+  assert(homeMode.pop() == 4 && homeMode.stats().mode == 2 && homeMode.count() == 0);
+
+  // Holding Tab while a page changes never becomes an unexpected mode toggle.
+  NativeNavigationInput primedMode;
+  primedMode.prime(keys("\t"));
+  primedMode.update(keys("\t")); assert(primedMode.pop() == 0);
+  primedMode.update(keys("")); primedMode.update(keys("\t"));
+  assert(primedMode.pop() == 4);
+  primedMode.update(nativeNavigationForPage(keys("\t", true), true, false));
+  assert(primedMode.pop() == 0);
+  primedMode.prime(nativeNavigationForPage(keys("\t"), false, false));
+  primedMode.update(nativeNavigationForPage(keys("\t"), false, false));
+  assert(primedMode.pop() == 0);
+
+  // The actual production page filter reserves chat Tab for history editing.
+  NativeNavigationInput chatNavigation;
+  auto chatPage = nativeNavigationForPage(keys(",;./\t`", true), true, false);
+  assert(!chatPage.mode && !chatPage.left && !chatPage.right && !chatPage.up &&
+      !chatPage.down && !chatPage.enter && chatPage.back);
+  chatNavigation.update(chatPage);
+  assert(chatNavigation.pop() == 3 && chatNavigation.pop() == 0);
+  assert(!nativeNavigationForPage(keys("\t`"), true, true).back);
+  NativeChatKeyboard chatKeyboard;
+  std::array<NativeChatPhysicalKey, 56> physical{};
+  physical[14].down = true; physical[14].base = physical[14].character = 0x2b;
+  chatKeyboard.update(physical, NativeChatModifiers{}, true, 0);
+  NativeChatKey chatKey;
+  assert(chatKeyboard.pop(chatKey) && chatKey.kind == NativeChatKeyKind::ToggleHistory);
+  assert(!chatKeyboard.pop(chatKey));
+  std::cout << "Navigation: physical arrows/16-agent wrap, home mode edges/priming, chat Tab ownership and bounded FIFO passed\n";
 }

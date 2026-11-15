@@ -42,7 +42,14 @@ cases = {
     "test_shared_wifi.cpp": (),
     "test_wifi_recovery.cpp": (),
     "test_nvs_erase_policy.cpp": (),
-    "test_conversation_view.cpp": (),
+    "test_experience_controller.cpp": ("ExperienceController.cpp",),
+    "test_device_gesture.cpp": (),
+    "test_device_gesture_mailbox.cpp": (),
+    "test_saved_wifi_join.cpp": (),
+    "test_send_recovery.cpp": (),
+    "test_management_request_gate.cpp": (),
+    "test_studio_connect.cpp": ("StudioConnectJob.cpp",),
+    "test_studio_auth.cpp": ("StudioAuthJob.cpp",),
     "test_chat_keyboard.cpp": (),
     "test_key_click.cpp": (),
     "test_official_studio_connection.cpp": (),
@@ -74,4 +81,6 @@ with tempfile.TemporaryDirectory(prefix="cardputer-stock-lan-tests-") as temp:
         ], check=True)
         subprocess.run([str(binary)], check=True)
 subprocess.run([sys.executable, str(firmware / "tests/run_exclusive_recording_file_test.py")], check=True)
-print(f"Stock-LAN protocol/state suite: {len(cases) + 1} programs passed; all 16 canonical routes match")
+subprocess.run([sys.executable, "-B", str(firmware / "tests/run_finish_recording_tests.py")], check=True)
+subprocess.run([sys.executable, "-B", str(firmware / "tests/run_official_voice_job_start_tests.py")], check=True)
+print(f"Stock-LAN protocol/state suite: {len(cases) + 3} programs passed; all 16 canonical routes match")

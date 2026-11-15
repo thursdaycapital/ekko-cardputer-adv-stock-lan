@@ -16,6 +16,12 @@ for (let index = 2; index < process.argv.length; index += 2) {
   if (!process.argv[index].startsWith('--') || !process.argv[index + 1]) throw Error('Arguments require --name value');
   options.set(process.argv[index].slice(2), process.argv[index + 1]);
 }
+if (options.get('mode') === 'daily-supplement') {
+  const { dailyMain } = await import('./stock_studio_daily.mjs');
+  try { await dailyMain(options); }
+  catch { console.error('Daily supplement stopped: validation or transport failed; no automatic resend.'); process.exitCode = 1; }
+} else {
+assert(!options.has('mode') || options.get('mode') === 'isolated', 'Unknown validation mode');
 for (const name of ['manifest', 'modules', 'report']) assert(options.has(name), `Missing --${name}`);
 const manifest = JSON.parse(await readFile(options.get('manifest'), 'utf8'));
 assert(['127.0.0.1', 'localhost'].includes(new URL(manifest.baseUrl).hostname), 'Run live tests on an isolated loopback service only');
@@ -253,3 +259,4 @@ try {
   }
 }
 if (!report.passed) process.exitCode = 1;
+}

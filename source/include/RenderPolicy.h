@@ -30,6 +30,7 @@ struct NativeRenderInput {
   const char* title = "";
   const char* hint = "";
   const char* address = "";
+  const char* mode_label = "";
   const char* error = "";
   const uint8_t* monochrome = nullptr;
   uint32_t chat_revision = 0, editor_revision = 0;
@@ -38,6 +39,9 @@ struct NativeRenderInput {
   const char* chat_notice = "";
   bool chat_history_mode = false;
   uint32_t input_method_revision = 0;
+  bool recording = false;
+  bool send_uncertain = false, send_reviewable = false;
+  uint32_t recording_elapsed_tenths = 0, recording_limit_ms = 5000;
 };
 
 enum class NativeRenderDecision { Draw, SameState, Throttled };
@@ -53,9 +57,13 @@ class NativeRenderPolicy {
         active_ == input.active && browse_ == input.browse &&
         message_ == text(input.message) && title_ == text(input.title) &&
         hint_ == text(input.hint) && address_ == text(input.address) && error_ == text(input.error) &&
+        modeLabel_ == text(input.mode_label) &&
         editorRevision_ == input.editor_revision && chatScroll_ == input.chat_scroll &&
         chatStatus_ == text(input.chat_status) && chatNotice_ == text(input.chat_notice) &&
-        chatHistoryMode_ == input.chat_history_mode && inputMethodRevision_ == input.input_method_revision;
+        chatHistoryMode_ == input.chat_history_mode && inputMethodRevision_ == input.input_method_revision &&
+        recording_ == input.recording && sendUncertain_ == input.send_uncertain &&
+        sendReviewable_ == input.send_reviewable && recordingElapsedTenths_ == input.recording_elapsed_tenths &&
+        recordingLimitMs_ == input.recording_limit_ms;
     bool sameBitmap = true;
     if (input.interaction) {
       sameBitmap = bitmapPresent_ == (input.monochrome != nullptr) &&
@@ -75,10 +83,14 @@ class NativeRenderPolicy {
     active_ = input.active; browse_ = input.browse;
     message_ = text(input.message); title_ = text(input.title);
     hint_ = text(input.hint); address_ = text(input.address); error_ = text(input.error);
+    modeLabel_ = text(input.mode_label);
     chatRevision_ = input.chat_revision; editorRevision_ = input.editor_revision;
     chatScroll_ = input.chat_scroll; chatStatus_ = text(input.chat_status); chatNotice_ = text(input.chat_notice);
     chatHistoryMode_ = input.chat_history_mode;
     inputMethodRevision_ = input.input_method_revision;
+    recording_ = input.recording; recordingElapsedTenths_ = input.recording_elapsed_tenths;
+    sendUncertain_ = input.send_uncertain; sendReviewable_ = input.send_reviewable;
+    recordingLimitMs_ = input.recording_limit_ms;
     bitmapPresent_ = input.interaction && input.monochrome;
     if (bitmapPresent_) std::memcpy(bitmap_.data(), input.monochrome, bitmap_.size());
     lastFrameAtMs_ = now; hasFrame_ = true;
@@ -93,7 +105,11 @@ class NativeRenderPolicy {
   size_t chatScroll_ = 0;
   bool chatHistoryMode_ = false;
   uint32_t inputMethodRevision_ = 0;
+  bool recording_ = false;
+  bool sendUncertain_ = false, sendReviewable_ = false;
+  uint32_t recordingElapsedTenths_ = 0, recordingLimitMs_ = 5000;
   std::string message_, title_, hint_, address_, error_;
+  std::string modeLabel_;
   std::string chatStatus_, chatNotice_;
   std::array<uint8_t, kNativeMonochromeBytes> bitmap_{};
 };

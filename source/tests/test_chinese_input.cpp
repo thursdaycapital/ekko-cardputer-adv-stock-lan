@@ -228,9 +228,46 @@ static void zeroHeap() {
   assert(allocations == 0);
 }
 
+static void physicalChordComposition() {
+  NativeChatKeyboard keyboard;
+  NativeChineseInput ime;
+  NativeChatInput draft;
+  type(ime, draft, "nihao");
+  std::array<NativeChatPhysicalKey, 56> keys{};
+  NativeChatModifiers mods;
+  NativeChatKey event;
+  keys[39].base = keys[39].character = ';'; keys[39].down = true;
+  keyboard.update(keys, mods, true, 0);
+  assert(!keyboard.pop(event));
+  mods.fn = true; keyboard.update(keys, mods, true, 15);
+  assert(keyboard.pop(event) && event.kind == NativeChatKeyKind::ScrollUp);
+  assert(!ime.handle(event, draft).handled);
+  assert(ime.composing() && draft.empty()); sameText(ime.preedit(), "nihao");
+  keys[39].down = false; mods.fn = false; keyboard.update(keys, mods, true, 16);
+
+  keys[55].base = keys[55].character = ' '; keys[55].down = true;
+  keyboard.update(keys, mods, true, 20); assert(!keyboard.pop(event));
+  mods.fn = true; keyboard.update(keys, mods, true, 35);
+  assert(!keyboard.pop(event) && ime.composing() && draft.empty());
+  keys[55].down = false; mods.fn = false; keyboard.update(keys, mods, true, 36);
+
+  // A fast ordinary Space still selects the real dictionary candidate once.
+  keys[55].down = true; keyboard.update(keys, mods, true, 40);
+  keys[55].down = false; keyboard.update(keys, mods, true, 41);
+  assert(keyboard.pop(event) && event.kind == NativeChatKeyKind::Insert && event.character == ' ');
+  assert(ime.handle(event, draft).handled && !ime.composing());
+  sameText(draft.data(), "你好"); assert(!keyboard.pop(event));
+  type(ime, draft, "nihao");
+  keys[41].base = keys[41].character = 0x28; keys[41].down = true; mods.ctrl = true;
+  keyboard.update(keys, mods, true, 50);
+  assert(keyboard.pop(event) && event.kind == NativeChatKeyKind::AcknowledgeSend);
+  assert(!ime.handle(event, draft).handled);
+  assert(ime.composing()); sameText(ime.preedit(), "nihao"); sameText(draft.data(), "你好");
+}
+
 int main() {
   normalConversation(); pagesAndPrefix(); noCandidateAndBoundaries(); atomicCapacity();
-  contextEditingAndEnglish(); zeroHeap();
+  contextEditingAndEnglish(); zeroHeap(); physicalChordComposition();
   std::cout << "Chinese input: real dictionary/selection/prefix/pages/Enter/atomic capacity/contexts/zero heap passed; sizeof="
             << sizeof(NativeChineseInput) << '\n';
 }

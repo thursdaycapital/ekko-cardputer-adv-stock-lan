@@ -21,7 +21,7 @@ assert 'setChatNotice(chatFailureNotice(' in main  # Standard run.failed project
 assert 'return String(official_run_failure::notice(error.c_str()).text);' in main
 assert '"NATIVE / ONLINE"' not in hardware and '"DISPLAY RAM LOW"' not in hardware
 assert 'glyph5x7' not in main
-assert '"中文 Ctrl+Space"' in renderer and '"Fn+空格说话"' in renderer
+assert '"中文 Ctrl+Space"' in renderer and '"G0/Fn+空格说话 5秒"' in renderer
 assert '"我"' not in renderer and '"AI"' not in renderer
 # A default profile is translated only in the display half of an HTML option.
 assert '''html += escapeHtml(loginProfiles[i]);
@@ -34,7 +34,8 @@ assert 'selectedProfile = requestedProfile' in main
 assert 'prefs.getString("cur_profile", "")' in main
 assert '&ekko_pixel_font::kFont' in hardware
 assert '&fonts::efontCN_16' not in hardware
-assert 'selectionMessage(selection, selectionError, chatNotice)' in hardware
+assert 'cardputerDraw(const CardputerPresentation& view)' in hardware
+assert 'drawDeviceHome(frame, view)' in hardware
 
 # Every static status argument must have a display translation, including
 # conditional/multiline calls. Dynamic IPs and interaction labels stay dynamic.
@@ -65,7 +66,7 @@ assert not status_arguments - status_keys - {"AUTO "}, status_arguments - status
 codepoints = {int(value.removeprefix("U+"), 16) for value in
               (firmware / "assets/fusion-pixel/codepoints.txt").read_text().splitlines()}
 labels = []
-for relative in ("src/main.cpp", "src/CardputerHardware.cpp", "include/ChatRenderer.h",
+for relative in ("src/main.cpp", "src/CardputerHardware.cpp", "include/ChatRenderer.h", "include/DeviceHomeRenderer.h", "include/DevicePresentation.h",
                  "include/ChatStatus.h", "include/ChatSymbols.h", "include/UiLocalization.h",
                  "include/OfficialStudioSelectionNotice.h", "include/OfficialRunFailureNotice.h"):
     text = (firmware / relative).read_text()
@@ -107,8 +108,6 @@ with tempfile.TemporaryDirectory(prefix="cardputer-localization-tests-") as temp
     # boundary. This catches half-character truncation independently of fonts.
     start = main.index("String fitOledText(")
     end = main.index("\nuint8_t clampUiValue", start)
-    selection_start = hardware.index("const char* selectionMessage(")
-    selection_end = hardware.index("\n}\n}", selection_start) + 2
     truncate_source = Path(temporary) / "truncate.cpp"
     truncate_source.write_text(r'''
 #include <algorithm>
@@ -134,7 +133,7 @@ struct String {
   String substring(size_t start, size_t end) const { return value.substr(start, end - start); }
   String operator+(const char* tail) const { return value + tail; }
 };
-''' + main[start:end] + hardware[selection_start:selection_end] + r'''
+''' + main[start:end] + r'''
 int main() {
   assert(fitOledText(" 中文状态等待连接 ", 4).value == "中文状…");
   assert(fitOledText("中文", 2).value == "中文");
@@ -142,19 +141,6 @@ int main() {
   assert(fitOledText("中文", 0).value.empty());
   assert(fitOledText("Fn+空格说话", 6).value == "Fn+空格…");
   assert(fitOledText("Ekko", 8).value == "Ekko");
-  NativeAgentSelection selection;
-  String error("standard_agent_unavailable"), notice("CLI 未安装，请在电脑安装");
-  assert(std::string(selectionMessage(selection, error, notice)) == notice.value);
-  notice.value = "Agent 未授权，请在电脑登录";
-  assert(std::string(selectionMessage(selection, error, notice)) == notice.value);
-  selection.pending = true;
-  assert(std::string(selectionMessage(selection, error, notice)) == "正在读取配置");
-  selection.pending = false; notice.value.clear();
-  assert(std::string(selectionMessage(selection, error, notice)) == "请检查智能体配置");
-  notice.value = "CLI 未安装"; error.value = "standard_session_storage_failed";
-  assert(std::string(selectionMessage(selection, error, notice)) == "会话存储不可用");
-  error.value = "factory_unavailable";
-  assert(std::string(selectionMessage(selection, error, notice)) == "原厂固件不可用");
 }
 ''')
     truncate_binary = Path(temporary) / "truncate"

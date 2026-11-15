@@ -6,7 +6,7 @@
 // assertion of the provider's exact cause. No raw text is returned or logged.
 namespace official_run_failure {
 constexpr size_t kMaxErrorBytes = 512;
-enum class Reason : uint8_t { Unknown, RuntimeOrFileMissing, Authorization, NetworkOrTimeout, QuotaOrRateLimit };
+enum class Reason : uint8_t { Unknown, RuntimeOrFileMissing, Authorization, NetworkOrTimeout, QuotaOrRateLimit, BackendDataFormat };
 struct Notice { Reason reason; const char* code; const char* text; };
 
 namespace detail {
@@ -100,10 +100,13 @@ inline Reason classify(const char* raw) {
       "rate limit","rate limited","quota exceeded","quota exhausted","insufficient quota",
       "insufficient credits","insufficient balance","out of credits","额度不足","余额不足",
       "配额不足","触发限流","请求过于频繁"};
+  static constexpr const char* dataFormat[]={"plugin_schema","expected JSON data",
+      "serialization error","deserialization error"};
   const uint8_t hints=(detail::any(input,runtime)?1:0)|
       ((detail::any(input,authorization)||detail::httpStatus(input,"401")||detail::httpStatus(input,"403"))?2:0)|
       (detail::any(input,network)?4:0)|
-      ((detail::any(input,quota)||detail::httpStatus(input,"429"))?8:0);
+      ((detail::any(input,quota)||detail::httpStatus(input,"429"))?8:0)|
+      (detail::any(input,dataFormat)?16:0);
   // Multiple mutually different categories cannot establish a precise cause.
   // An API-key mention alone isn't an auth error, so normal quota diagnostics
   // which merely mention a key still classify as quota.
@@ -111,6 +114,7 @@ inline Reason classify(const char* raw) {
   if(hints==1)return Reason::RuntimeOrFileMissing;
   if(hints==2)return Reason::Authorization;
   if(hints==4)return Reason::NetworkOrTimeout;
+  if(hints==16)return Reason::BackendDataFormat;
   return Reason::QuotaOrRateLimit;
 }
 inline Notice describe(Reason reason) {
@@ -118,6 +122,7 @@ inline Notice describe(Reason reason) {
     case Reason::RuntimeOrFileMissing:return {reason,"runtime_or_file_missing","运行环境或文件缺失，请检查电脑"};
     case Reason::Authorization:return {reason,"authorization","模型或 Agent 授权失败，请检查电脑"};
     case Reason::NetworkOrTimeout:return {reason,"network_or_timeout","请求超时或网络异常，请稍后重试"};
+    case Reason::BackendDataFormat:return {reason,"backend_data_format","后台数据格式异常，请检查电脑"};
     case Reason::QuotaOrRateLimit:return {reason,"quota_or_rate_limit","模型额度或限流，请查看电脑端"};
     case Reason::Unknown:break;
   }

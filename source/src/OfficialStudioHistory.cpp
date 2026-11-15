@@ -6,6 +6,7 @@
 #include <new>
 #ifndef ARDUINO
 #include <pthread.h>
+#include <chrono>
 #endif
 #ifdef ARDUINO
 #include <Arduino.h>
@@ -33,8 +34,17 @@ template<size_t N> bool copy(std::array<char,N>& output,const char* text) {
 void clear(Input& input) {
   input.baseUrl.fill(0);wipe(input.userJwt.data(),input.userJwt.size());
   input.profile.fill(0);input.session.fill(0);input.epoch=input.offset=input.byteOffset=0;
+  input.allowLocalAbsence=false;
 }
 bool cancelled(const Cancellation* token){return token&&token->cancelled();}
+uint32_t nowMs() {
+#ifdef ARDUINO
+  return millis();
+#else
+  return uint32_t(std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::steady_clock::now().time_since_epoch()).count());
+#endif
+}
 bool equalAscii(const char* value,const char* expected) {
   if(!value)return false;
   while(*expected) {
@@ -195,6 +205,65 @@ class Sink final:public ResponseSink {
   bool fail(Result result){result_=result;return false;}
 };
 
+// A signed Studio may fall through to Hermes for an unknown paginated ID and
+// return500. Only the local detail route's complete, fixed404 JSON proves that
+// ID absent. A200 here is NOT loaded: its unpaginated messages may be huge.
+class MissingProof final:public ResponseSink,private bounded_json::Listener {
+ public:
+  explicit MissingProof(const Cancellation* token):reader_(*this),token_(token){}
+  int status=0;
+  bool begin(const Headers& headers)override {
+    if(begun_)return fail(Result::Invalid);
+    begun_=true;status=headers.status;expected_=headers.contentLength;
+    if(cancelled(token_))return fail(Result::Cancelled);
+    if(status!=404)return fail(status==200?Result::Transient:httpResult(status));
+    if(expected_<-1||expected_==0||expected_>int64_t(kMaximumBytes)||!jsonMediaType(headers.contentType)||
+        (headers.contentEncoding&&*headers.contentEncoding&&!equalAscii(headers.contentEncoding,"identity")))
+      return fail(Result::Invalid);
+    return true;
+  }
+  bool write(const uint8_t* bytes,size_t count)override {
+    if(result_!=Result::Ok)return false;
+    if(!begun_||(!bytes&&count)||count>kMaximumBytes-received_)return fail(Result::Invalid);
+    if(cancelled(token_))return fail(Result::Cancelled);
+    received_+=count;
+    if(expected_>=0&&received_>uint64_t(expected_))return fail(Result::Invalid);
+    return reader_.feed(bytes,count)||fail(Result::Invalid);
+  }
+  Result finish(bool complete) {
+    if(cancelled(token_))return Result::Cancelled;
+    if(result_!=Result::Ok)return result_;
+    if(!begun_||!complete||(expected_>=0&&received_!=uint64_t(expected_)))return Result::Transient;
+    return reader_.finish()&&reader_.complete()&&root_&&errorSeen_&&errorDone_&&
+        !std::strcmp(error_.data(),"Session not found")?Result::Empty:Result::Invalid;
+  }
+ private:
+  static constexpr size_t kMaximumBytes=1024;
+  bounded_json::Reader<32,256,64> reader_;
+  const Cancellation* token_;
+  std::array<char,32> error_{};size_t errorBytes_=0,received_=0;
+  int64_t expected_=-1;Result result_=Result::Ok;
+  bool begun_=false,root_=false,errorSeen_=false,errorDone_=false;
+  bool fail(Result result){result_=result;return false;}
+  bool onEvent(const bounded_json::Event& event)override {
+    using bounded_json::Type;
+    if(!event.path.size) {
+      if(event.type==Type::ObjectBegin){root_=true;return true;}
+      return event.type==Type::ObjectEnd;
+    }
+    if(event.path.size!=1||!key(event.path,0,"error"))return false;
+    if(event.type==Type::Key){if(errorSeen_)return false;errorSeen_=true;return true;}
+    if(event.type==Type::StringBegin)return true;
+    if(event.type==Type::StringChunk) {
+      if(event.size>error_.size()-1-errorBytes_||std::memchr(event.data,0,event.size))return false;
+      std::memcpy(error_.data()+errorBytes_,event.data,event.size);errorBytes_+=event.size;
+      error_[errorBytes_]=0;return true;
+    }
+    if(event.type==Type::StringEnd){errorDone_=true;return true;}
+    return false;
+  }
+};
+
 constexpr size_t kPathBytes=(kProfileBytes+kSessionBytes)*3+160;
 bool append(char* path,size_t& used,const char* text,bool encode) {
   static const char hex[]="0123456789ABCDEF";
@@ -213,6 +282,11 @@ bool pathFor(char* path,const Input& input) {
       append(path,used,"/messages/paginated?limit=12&offset=",false)&&append(path,used,offset,false)&&
       append(path,used,"&profile=",false)&&append(path,used,input.profile.data(),true);
 }
+bool detailPathFor(char* path,const Input& input) {
+  size_t used=0;
+  return append(path,used,"/api/studio/sessions/",false)&&append(path,used,input.session.data(),true)&&
+      append(path,used,"?profile=",false)&&append(path,used,input.profile.data(),true);
+}
 } // namespace
 
 Input::~Input(){wipe(userJwt.data(),userJwt.size());}
@@ -230,17 +304,19 @@ bool validInput(const Input& input) {
   return true;
 }
 Result makeInput(Input& output,const char* base,const char* jwt,const char* profile,const char* session,
-                 uint32_t epoch,uint32_t offset,uint32_t byteOffset) {
+                 uint32_t epoch,uint32_t offset,uint32_t byteOffset,bool allowLocalAbsence) {
   // Heap transaction supports even cross-field aliases into output, without a
   // second ~5KiB value on the Arduino loop stack or partially updating a bind.
   auto candidate=std::unique_ptr<Input>(new(std::nothrow)Input);
   if(!candidate){clear(output);return Result::NoMemory;}
   candidate->epoch=epoch;candidate->offset=offset;candidate->byteOffset=byteOffset;
+  candidate->allowLocalAbsence=allowLocalAbsence;
   if(!copy(candidate->baseUrl,base)||!copy(candidate->userJwt,jwt)||!copy(candidate->profile,profile)||
       !copy(candidate->session,session)||!validInput(*candidate)){clear(output);return Result::Invalid;}
   output=*candidate;return Result::Ok;
 }
 Output resolve(const Input& input,Transport& transport,const Cancellation* cancellation) {
+  const uint32_t started=nowMs();
   Output output;output.epoch=input.epoch;output.offset=input.offset;output.byteOffset=input.byteOffset;
   output.profile=input.profile;output.session=input.session;
   if(!validInput(input))return output;
@@ -254,7 +330,28 @@ Output resolve(const Input& input,Transport& transport,const Cancellation* cance
   Request request;request.input=&input;request.path=path.get();
   const bool complete=!cancelled(cancellation)&&transport.get(request,*sink);
   output.httpCode=sink->status;output.result=sink->finish(complete);
-  if(output.result==Result::Ok)output.snapshot=std::move(snapshot);
+  if(output.result==Result::Empty)output.result=Result::Transient; // Page404 alone has no local/remote provenance.
+  if(cancelled(cancellation)){output.result=Result::Cancelled;return output;}
+  if(uint32_t(nowMs()-started)>=kTimeoutMs){output.result=Result::Transient;return output;}
+  if(output.result==Result::Ok){output.snapshot=std::move(snapshot);return output;}
+  const bool needsProof=input.allowLocalAbsence&&!input.offset&&!input.byteOffset&&
+      (output.httpCode==404||(output.httpCode>=500&&output.httpCode<=599));
+  if(!needsProof)return output;
+  // Keep the successful long-page path unchanged and release its parsing and
+  // display allocations before the small missing-session proof. Both requests
+  // consume ONE absolute budget, including a late synchronous SDK result.
+  sink.reset();snapshot.reset();
+  const uint32_t elapsed=uint32_t(nowMs()-started);
+  if(elapsed>=kTimeoutMs){output.result=Result::Transient;return output;}
+  auto proof=std::unique_ptr<MissingProof>(new(std::nothrow)MissingProof(cancellation));
+  if(!proof){output.result=Result::NoMemory;return output;}
+  if(!detailPathFor(path.get(),input)){output.result=Result::Invalid;return output;}
+  request.path=path.get();request.timeoutMs=uint16_t(kTimeoutMs-elapsed);
+  const bool proofComplete=!cancelled(cancellation)&&transport.get(request,*proof);
+  output.result=proof->finish(proofComplete);
+  if(cancelled(cancellation))output.result=Result::Cancelled;
+  else if(uint32_t(nowMs()-started)>=kTimeoutMs)output.result=Result::Transient;
+  if(proof->status!=200&&proof->status)output.httpCode=proof->status;
   return output;
 }
 

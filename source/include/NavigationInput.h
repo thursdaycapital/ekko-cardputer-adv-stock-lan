@@ -4,13 +4,13 @@
 #include <cstdint>
 
 struct NativeNavigationKeys {
-  bool left = false, right = false, up = false, down = false, enter = false, back = false;
+  bool left = false, right = false, up = false, down = false, enter = false, back = false, mode = false;
 };
 
 // M5Cardputer's getKey()/isKeyPressed() changes printable characters under
 // Shift, Ctrl and Caps Lock. Both legends identify the same physical key.
 template <class IsPressed>
-NativeNavigationKeys nativeNavigationKeys(IsPressed pressed, bool enter) {
+NativeNavigationKeys nativeNavigationKeys(IsPressed pressed, bool enter, bool mode = false) {
   NativeNavigationKeys keys;
   keys.left = pressed(',') || pressed('<');
   keys.right = pressed('/') || pressed('?');
@@ -18,12 +18,24 @@ NativeNavigationKeys nativeNavigationKeys(IsPressed pressed, bool enter) {
   keys.down = pressed('.') || pressed('>');
   keys.enter = enter;
   keys.back = pressed('`') || pressed('~'); // Physical top-left Esc key.
+  keys.mode = mode; // SDK tab state, never its overlapping HID/ASCII '+' value.
+  return keys;
+}
+
+// Apply the same page ownership before edge detection in production and host
+// tests. Chat owns Tab/history and all printable arrow legends exclusively.
+inline NativeNavigationKeys nativeNavigationForPage(NativeNavigationKeys keys,
+                                                    bool conversation, bool fn) {
+  if (conversation) {
+    keys.left = keys.right = keys.up = keys.down = keys.enter = keys.mode = false;
+    keys.back = keys.back && !fn;
+  }
   return keys;
 }
 
 struct NativeNavigationStats {
   uint32_t left = 0, right = 0, up = 0, down = 0;
-  uint32_t ok = 0, back = 0;
+  uint32_t ok = 0, back = 0, mode = 0;
   uint32_t dropped = 0;
   size_t queued = 0;
 };
@@ -33,12 +45,12 @@ struct NativeNavigationStats {
 class NativeNavigationInput {
  public:
   void prime(const NativeNavigationKeys& keys) {
-    held_ = {{keys.left, keys.right, keys.up, keys.down, keys.enter, keys.back}};
+    held_ = {{keys.left, keys.right, keys.up, keys.down, keys.enter, keys.back, keys.mode}};
     head_ = count_ = 0;
   }
   void update(const NativeNavigationKeys& keys) {
-    const std::array<bool, 6> down{{keys.left, keys.right, keys.up, keys.down, keys.enter, keys.back}};
-    constexpr std::array<int, 6> actions{{-1, 1, -1, 1, 2, 3}};
+    const std::array<bool, 7> down{{keys.left, keys.right, keys.up, keys.down, keys.enter, keys.back, keys.mode}};
+    constexpr std::array<int, 7> actions{{-1, 1, -1, 1, 2, 3, 4}};
     for (size_t i = 0; i < down.size(); ++i) {
       if (down[i] && !held_[i]) {
         if (i < counts_.size()) ++counts_[i];
@@ -83,14 +95,14 @@ class NativeNavigationInput {
     NativeNavigationStats result;
     result.left = counts_[0]; result.right = counts_[1];
     result.up = counts_[2]; result.down = counts_[3];
-    result.ok = counts_[4]; result.back = counts_[5];
+    result.ok = counts_[4]; result.back = counts_[5]; result.mode = counts_[6];
     result.dropped = dropped_; result.queued = count_;
     return result;
   }
 
  private:
-  std::array<bool, 6> held_{};
-  std::array<uint32_t, 6> counts_{};
+  std::array<bool, 7> held_{};
+  std::array<uint32_t, 7> counts_{};
   std::array<int, 8> queue_{};
   size_t head_ = 0, count_ = 0;
   uint32_t dropped_ = 0;

@@ -5,7 +5,7 @@
 
 enum class NativeChatKeyKind : uint8_t {
   None, Insert, Send, Newline, Backspace, Delete, Left, Right, ScrollUp, ScrollDown, Home, End, Refresh,
-  ToggleHistory, HistoryOlder, HistoryNewer, ToggleChinese
+  ToggleHistory, HistoryOlder, HistoryNewer, ToggleChinese, AcknowledgeSend
 };
 struct NativeChatKey {
   NativeChatKeyKind kind = NativeChatKeyKind::None;
@@ -25,6 +25,14 @@ inline NativeChatKey nativeChatKey(uint8_t base, uint8_t character,
   if (base == ' ' && mods.fn) return key; // Voice owns Fn+Space, even with Ctrl held.
   if (base == ' ' && mods.ctrl && !mods.alt) {
     key.kind = NativeChatKeyKind::ToggleChinese;
+    return key;
+  }
+  if (base == 0x28 && !mods.alt && (mods.fn || mods.shift)) {
+    key.kind = historyMode ? NativeChatKeyKind::ToggleHistory : NativeChatKeyKind::Newline;
+    return key;
+  }
+  if (base == 0x28 && mods.ctrl && !mods.alt) {
+    key.kind = NativeChatKeyKind::AcknowledgeSend;
     return key;
   }
   if (mods.ctrl || mods.alt) return key;
@@ -56,19 +64,43 @@ inline NativeChatKey nativeChatKey(uint8_t base, uint8_t character,
 
 class NativeChatKeyboard {
  public:
+  static constexpr uint32_t kChordGraceMs = 20;
   void update(const std::array<NativeChatPhysicalKey, 56>& keys,
               const NativeChatModifiers& mods, bool enabled, uint32_t now, bool prime = false,
               bool historyMode = false) {
     const bool modeChanged = historyMode_ != historyMode;
-    // Give a modifier arriving on the next physical scan a chance to claim
-    // Space before it changes the draft. Flush before newer keys to preserve
-    // normal typing order. No editing rollback is needed by the caller.
-    if (spacePending_) {
-      if (enabled && !prime && !modeChanged && !mods.ctrl && !mods.fn && !mods.alt) {
-        NativeChatKey space; space.kind = NativeChatKeyKind::Insert; space.character = ' ';
-        enqueue(space);
+    uint64_t claimed = 0;
+    if (!enabled || prime || modeChanged) {
+      head_ = count_ = pendingCount_ = 0;
+    } else if (pendingCount_) {
+      // Delay only ambiguous printable keys, never mutate a draft and then
+      // attempt to undo it. A fast release or a newer ordinary key resolves
+      // the original character first, preserving normal typing order.
+      bool flush = false;
+      for (size_t i = 0; i < pendingCount_; ++i)
+        if (!keys[pending_[i].key].down) flush = true;
+      for (size_t i = 0; i < keys.size(); ++i) {
+        if (!keys[i].down || held_[i]) continue;
+        const auto next = nativeChatKey(keys[i].base, keys[i].character, mods, historyMode);
+        if (next.kind != NativeChatKeyKind::None && !deferPrintable(keys[i].base, next)) flush = true;
       }
-      spacePending_ = false;
+      size_t index = 0;
+      while (index < pendingCount_) {
+        const Pending pending = pending_[index];
+        const auto mapped = nativeChatKey(pending.base, static_cast<uint8_t>(pending.event.character), mods, historyMode);
+        const bool modifier = mods.fn || mods.ctrl || mods.alt;
+        if (!modifier && !flush && uint32_t(now - pending.startedAt) < kChordGraceMs) { ++index; continue; }
+        if (modifier) {
+          // Fn+Space is deliberately None: voice exclusively owns the chord.
+          if (mapped.kind != NativeChatKeyKind::None) enqueue(mapped);
+          claimed |= uint64_t(1) << pending.key;
+        } else {
+          enqueue(pending.event);
+          printableConsumed_ |= uint64_t(1) << pending.key;
+        }
+        for (size_t j = index; j + 1 < pendingCount_; ++j) pending_[j] = pending_[j + 1];
+        --pendingCount_;
+      }
     }
     for (size_t i = 0; i < keys.size(); ++i) {
       const NativeChatKey event = nativeChatKey(keys[i].base, keys[i].character, mods, historyMode);
@@ -76,44 +108,60 @@ class NativeChatKeyboard {
           event.kind == NativeChatKeyKind::Left || event.kind == NativeChatKeyKind::Right ||
           event.kind == NativeChatKeyKind::ScrollUp || event.kind == NativeChatKeyKind::ScrollDown;
       if (keys[i].down && (!held_[i] || modeChanged)) repeatAt_[i] = now + 420;
-      const bool repeat = repeatable && held_[i] && !modeChanged && static_cast<int32_t>(now - repeatAt_[i]) >= 0;
-      // Fn can arrive a scan after the physical arrow. Recognize that chord
-      // immediately instead of requiring another press or the 420ms repeat.
-      // A mode change alone never replays an already held key into the draft.
-      const bool scrollChord = held_[i] && !modeChanged && kinds_[i] != event.kind &&
-          (event.kind == NativeChatKeyKind::ScrollUp || event.kind == NativeChatKeyKind::ScrollDown);
-      const bool chineseChord = event.kind == NativeChatKeyKind::ToggleChinese && !ctrlHeld_;
-      if (enabled && !prime && keys[i].down && (!held_[i] || repeat || scrollChord || chineseChord) && event.kind != NativeChatKeyKind::None) {
-        if (event.kind == NativeChatKeyKind::Insert && event.character == ' ') spacePending_ = true;
+      const bool repeat = repeatable && held_[i] && !modeChanged &&
+          !(printableConsumed_ & (uint64_t(1) << i)) && static_cast<int32_t>(now - repeatAt_[i]) >= 0;
+      const bool chineseChord = event.kind == NativeChatKeyKind::ToggleChinese && !ctrlHeld_ &&
+          !(printableConsumed_ & (uint64_t(1) << i));
+      if (enabled && !prime && !(claimed & (uint64_t(1) << i)) && keys[i].down &&
+          (!held_[i] || repeat || chineseChord) && event.kind != NativeChatKeyKind::None) {
+        if (deferPrintable(keys[i].base, event)) defer(i, keys[i].base, event, now);
         else enqueue(event);
         if (repeat) repeatAt_[i] = now + 90;
       }
       held_[i] = keys[i].down;
-      kinds_[i] = event.kind;
+      if (!keys[i].down) printableConsumed_ &= ~(uint64_t(1) << i);
     }
     historyMode_ = historyMode;
     ctrlHeld_ = mods.ctrl;
-    if (!enabled || prime) { head_ = count_ = 0; spacePending_ = false; }
+    if (!enabled || prime) { head_ = count_ = pendingCount_ = 0; }
   }
   bool pop(NativeChatKey& key) {
     if (!count_) return false;
     key = queue_[head_]; head_ = (head_ + 1) % queue_.size(); --count_; return true;
   }
-  bool pending() const { return count_ != 0 || spacePending_; }
+  bool pending() const { return count_ != 0 || pendingCount_ != 0; }
   uint32_t pressed() const { return pressed_; }
   uint32_t dropped() const { return dropped_; }
  private:
+  struct Pending { NativeChatKey event; uint32_t startedAt = 0; uint8_t key = 0, base = 0; };
+  static bool deferPrintable(uint8_t base, const NativeChatKey& event) {
+    return event.kind == NativeChatKeyKind::Insert &&
+        (base == ' ' || base == ',' || base == '/' || base == ';' || base == '.');
+  }
+  void defer(size_t key, uint8_t base, const NativeChatKey& event, uint32_t now) {
+    if (pendingCount_ == pending_.size()) {
+      // Even a synthetic scan with duplicate physical mappings stays ordered
+      // and bounded. Real Cardputer hardware has five ambiguous base keys.
+      for (size_t i = 0; i < pendingCount_; ++i) {
+        enqueue(pending_[i].event);
+        printableConsumed_ |= uint64_t(1) << pending_[i].key;
+      }
+      pendingCount_ = 0;
+    }
+    auto& pending = pending_[pendingCount_++];
+    pending.key = static_cast<uint8_t>(key); pending.base = base; pending.event = event; pending.startedAt = now;
+  }
   void enqueue(const NativeChatKey& event) {
     ++pressed_;
     if (count_ < queue_.size()) { queue_[(head_ + count_) % queue_.size()] = event; ++count_; }
     else ++dropped_;
   }
   std::array<bool, 56> held_{};
-  std::array<NativeChatKeyKind, 56> kinds_{};
   std::array<uint32_t, 56> repeatAt_{};
   std::array<NativeChatKey, 24> queue_{};
-  size_t head_ = 0, count_ = 0;
+  std::array<Pending, 5> pending_{};
+  size_t head_ = 0, count_ = 0, pendingCount_ = 0;
+  uint64_t printableConsumed_ = 0;
   uint32_t pressed_ = 0, dropped_ = 0;
-  bool historyMode_ = false;
-  bool ctrlHeld_ = false, spacePending_ = false;
+  bool historyMode_ = false, ctrlHeld_ = false;
 };
