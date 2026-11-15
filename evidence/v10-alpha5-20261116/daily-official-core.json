@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "studioVersion": "0.8.24",
+  "officialServerEntrySha256": "c04bfec6333a0e70d763ba93ec2fff7bf3f7b6241b6b75c4d5c1d57a571084e0",
+  "officialEntryRestored": true,
+  "originalModifiedEntryPrivatelyBackedUp": true,
+  "sealedFilesMatched": 8107,
+  "sealedSymlinksMatched": 16,
+  "sealedMismatches": 0,
+  "strictSignatureValid": false,
+  "strictFailureCategory": "six_runtime_generated_python_cache_files",
+  "userConfigurationChanged": false,
+  "pluginSettingsChanged": false,
+  "ordinaryDesktopTextTest": "passed",
+  "m5ConnectionTest": "pending",
+  "ordinaryDesktopAgent": "ekko-agent",
+  "ordinaryDesktopTerminal": "run.completed",
+  "ordinaryDesktopReplyVisible": true,
+  "ordinaryDesktopAgents": [
+    {
+      "agent": "ekko-agent",
+      "mode": "studio",
+      "terminal": "run.completed",
+      "replyVisible": true
+    },
+    {
+      "agent": "codex",
+      "mode": "studio",
+      "terminal": "run.completed",
+      "replyVisible": true,
+      "replyPersisted": true
+    }
+  ]
+}

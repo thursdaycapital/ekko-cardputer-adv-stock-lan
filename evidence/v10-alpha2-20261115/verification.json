@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "firmwareVersion": "cardputer-adv-v10.0.0-alpha.2",
+  "status": "codex-native-text-and-voice-confirmed-full-five-second-and-recovery-pending",
+  "build": {
+    "applicationBytes": 3316768,
+    "sha256": "064471bab83a3f657540e686948bfe77e53090c016cb2261653591da20000ab5",
+    "slotBytes": 3342336,
+    "remainingBytes": 25568,
+    "staticRamBytes": 115804,
+    "psram": false
+  },
+  "host": {
+    "protocolStateProgramsPassed": 34,
+    "chatImeRenderFont": true,
+    "fixedUiMissingGlyphs": 0,
+    "explicitModeProductionResolveAndSax": true,
+    "studioDoesNotFallbackProviderOrModel": true,
+    "nativeSkipsAvailableModels": true
+  },
+  "flash": {
+    "application_matches": true,
+    "boot_partition_and_preferences_unchanged": true,
+    "factory_and_storage_unchanged": true,
+    "bytes": 8388608,
+    "application_sha256": "064471bab83a3f657540e686948bfe77e53090c016cb2261653591da20000ab5"
+  },
+  "physical": {
+    "newFirmwareExecuted": true,
+    "textReplyConfirmed": true,
+    "voiceActualSoundConfirmed": true,
+    "fiveSecondAndRecoveryMatrixComplete": false,
+    "nativeTextTestCompleted": true,
+    "sttTextAndAgentAnswerConfirmed": true,
+    "fiveSecondAutoStopUserReported": true,
+    "fullFiveSecondPcmBytesVerified": false,
+    "allSixteenAgentsPhysicallyTested": false,
+    "fnSpaceAutoStopAndSoundUserReported": true
+  },
+  "configuration": {
+    "desktopChanged": false,
+    "nativeCodexPreferenceApproved": true,
+    "nativeCodexPreferenceApplied": true,
+    "nativeModeReady": true,
+    "sameBindingPreserved": true
+  },
+  "previousCandidateEvidence": "evidence/v10-rewrite-20261115/verification.json",
+  "privacy": {
+    "privateBackupsIncluded": false,
+    "rawLogsIncluded": false,
+    "credentialsIncluded": false
+  },
+  "observations": {
+    "connectTaskFreeStackBytes": 3684,
+    "freeHeapAfterNativeSelectionBytes": 101852,
+    "longestLoopGapMsObserved": 64,
+    "nativeModelCatalogStatus": "ready",
+    "nativeModelCatalogUsesExactAgentQuery": true,
+    "testInterruptedBySerialControlReset": true,
+    "resetReason": "USB_UART_CHIP_RESET",
+    "panicDetected": false,
+    "serialMonitoringStopped": true,
+    "latestFreeHeapBytes": 102468,
+    "bootMinimumFreeHeapBytes": 25548,
+    "latestLargestHeapBlockBytes": 86004,
+    "loopTaskMinimumFreeStackBytes": 4540,
+    "recordingMinimumFreeHeapBytes": 36636,
+    "recordingMinimumLargestBlockBytes": 19444,
+    "lastPcmBytes": 102400,
+    "lastIma4Bytes": 25600,
+    "lastAudioDurationFromBytesMs": 3200,
+    "captureProducedBlocks": 50,
+    "captureConsumedBlocks": 50,
+    "captureOverruns": 0,
+    "audioQueuedBlocks": 281,
+    "audioReleasedBlocks": 281,
+    "audioWriteTimeouts": 0,
+    "latestVoiceType": 1,
+    "latestVoiceHttp": 200,
+    "ttsMinimumFreeStackBytes": 27876,
+    "sttMinimumFreeStackBytes": null,
+    "chatAccepted": 2,
+    "chatReceivedChunks": 2,
+    "serverNativeAgentMode": "global",
+    "serverNewAssistantStopReplies": 2,
+    "recordingWallDeadlineGapConfirmedInSource": true,
+    "longestLoopGapDuringWifiSamplingMs": 1296,
+    "wifiSamplingLoopGapCause": "unresolved"
+  },
+  "userConfirmation": {
+    "dateLocal": "2026-11-15",
+    "agent": "codex",
+    "mode": "native",
+    "newTextReply": true,
+    "fiveSecondAutoStop": true,
+    "speechRecognition": true,
+    "agentAnswer": true,
+    "actualSound": true,
+    "independentFiveSecondByteCheck": "pending"
+  },
+  "observationMethod": {
+    "freshDirectWifiHealth": true,
+    "readOnlyStudioDatabase": true,
+    "runtimeSerialOpenedThisRound": false,
+    "rawScreenPublic": false
+  },
+  "desktopAudit": {
+    "runningStudioVersion": "0.8.24",
+    "versionSource": "loopback-health.webui_version",
+    "sealedRegularResourceHashesMatched": 8107,
+    "sealedSymlinksMatched": 16,
+    "sealedResourceMissingOrChanged": 0,
+    "deepStrictExitCode": 1,
+    "extraPythonCacheFilesReported": 6,
+    "codeSignatureIgnoringResourcesExitCode": 0,
+    "officialReleaseArchiveCompared": false,
+    "desktopFilesChangedByThisWork": false
+  },
+  "wifiSampling": {
+    "durationSeconds": 240,
+    "successfulSnapshots": 416,
+    "failedSnapshots": 1,
+    "newCompletionsObserved": false,
+    "sttTypeZeroCaptured": false,
+    "fullFiveSecondBytesCaptured": false,
+    "correlationLimit": "User reported Fn+Space success; this observation window retained prior counters, so it cannot independently prove a new take or full five seconds."
+  }
+}

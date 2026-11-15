@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
-  "releaseTag": "v9.0.0-dev.10-lan",
-  "firmwareVersion": "cardputer-adv-v9.0.0-dev.10-ram-lan",
-  "releaseChannel": "prerelease",
-  "publicRepository": "https://github.com/thursdaycapital/ekko-cardputer-adv-stock-lan",
-  "createdAtUtc": "2026-10-19T11:29:11.201212+00:00",
+  "releaseTag": "v10.0.0-alpha.5",
+  "firmwareVersion": "cardputer-adv-v10.0.0-alpha.5",
+  "releaseChannel": "development-preview",
+  "sourceCommit": "9e8f2aa38cdd39a19db0423e3d1afe87a1237f81",
+  "createdAtUtc": "2026-11-15T16:39:43.068505+00:00",
   "application": {
-    "file": "firmware/ekko-stock-lan-update-0x10000.bin",
-    "bytes": 3284000,
-    "sha256": "e753a1b04f22b249c962ad9fb304a5f193a6cd067bf41deedf6654eb0d8b2fb5",
+    "file": "firmware/ekko-cardputer-next-0x10000.bin",
+    "bytes": 3321056,
+    "sha256": "96e29f0aca8160e902f7cc56d8cac4446b435987b64fe0a800bc11f741d002c0",
     "offset": "0x10000",
     "partitionBytes": 3342336,
-    "remainingPartitionBytes": 58336
+    "remainingPartitionBytes": 21280
   },
   "existingDualLayoutOnly": true,
   "factoryOffset": "0x340000",
@@ -21,23 +21,55 @@
   "remoteSupported": false,
   "computerPatchRequired": false,
   "compatibility": {
-    "officialStudioBaseline": "0.7.36",
-    "deviceTextAndVoiceUserConfirmedOn0736": true,
-    "officialStudio0737TextUserConfirmed": true,
-    "officialStudio0737VoiceRetested": false,
+    "officialProtocolBaseline": "0.7.36",
+    "currentDesktopPristineVerified": false,
     "agentCatalogCount": 16,
-    "isolatedHostAgentsWithRealReplies": 13,
-    "all16PhysicallyAccepted": false
+    "v10PhysicalAcceptanceComplete": false,
+    "currentRuntimeVersionObserved": "0.8.24",
+    "previousAlpha2CodexNativeTextAndVoiceConfirmed": true,
+    "historicalStudioHandshakeTested": "0.8.22",
+    "currentAlpha3CodexNativeReturnAndVoiceConfirmed": true,
+    "currentAlpha3WallStopAndSttObserved": true,
+    "currentAlpha3LatestPlaybackLogsCompleted": true,
+    "currentOfficialCoreSealedFilesVerified": true,
+    "desktopUiRoutesTested": 16,
+    "desktopUiRoutesPassed": 14,
+    "desktopUiRoutesFailed": 2,
+    "currentAlpha5PhysicalAcceptanceComplete": false
   },
   "recording": {
-    "storage": "RAM IMA4",
+    "storage": "ram_ima4",
     "sdRequired": false,
-    "maximumSeconds": 5,
-    "fullFiveSecondAutoStopUserConfirmed": true,
-    "fullFiveSecondBytesIndependentlyObserved": false
+    "sampleRateHz": 16000,
+    "channels": 1,
+    "maximumMs": 5000,
+    "limitClock": "capture-ready-wall",
+    "maximumFrames": 80000,
+    "drainLimitMs": 1000
   },
-  "fullPhysicalAcceptanceMatrixComplete": false,
-  "arduinoCorrespondingSource": "source/arduino-esp32-2.0.17",
-  "relinkGuide": "RELINK.md",
-  "checksums": "SHA256SUMS.txt"
+  "verification": "evidence/v10-alpha5-20261116/verification.json",
+  "modelSelection": {
+    "explicitModes": [
+      "studio",
+      "native"
+    ],
+    "studioPolicy": "official-new-chat-compatible-default",
+    "studioUsesExactProfileDefault": false,
+    "compatibleDefaultNotice": true,
+    "agentFallback": false,
+    "nativeUsesCliLogin": true,
+    "nativeDefaultCatalogAdvisory": true
+  },
+  "sourceArchive": {
+    "file": "cardputer-adv-source-v10.0.0-alpha.5.tar.gz",
+    "bytes": 10158588,
+    "sha256": "23a8756227552906965be0aded09a7c14528f6455279357422eede93d3c2e258",
+    "sourceCommit": "9e8f2aa38cdd39a19db0423e3d1afe87a1237f81"
+  },
+  "releaseAssets": {
+    "application": "cardputer-adv-v10.0.0-alpha.5-update-0x10000.bin",
+    "source": "cardputer-adv-source-v10.0.0-alpha.5.tar.gz"
+  },
+  "releasePage": "https://github.com/thursdaycapital/ekko-cardputer-adv-stock-lan/releases/tag/v10.0.0-alpha.5",
+  "acceptanceStatus": "physical-recovery-incomplete"
 }

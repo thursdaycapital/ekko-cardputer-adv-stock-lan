@@ -1,0 +1,342 @@
+{
+  "schemaVersion": 1,
+  "kind": "official-desktop-ui-acceptance",
+  "generatedAt": "2026-11-15T16:23:34.283737+00:00",
+  "studioVersion": "0.8.24",
+  "profile": "default",
+  "status": "completed_with_failures",
+  "counts": {
+    "requested": 16,
+    "passed": 14,
+    "failed": 2
+  },
+  "boundaries": {
+    "officialDesktopUiWorkflow": true,
+    "physicalDeviceTest": false,
+    "voiceTest": false,
+    "remoteTest": false,
+    "lowPrivilegeAccountTest": false,
+    "settingsChangedByThisSummary": false,
+    "newModelRequestsByThisSummary": 0
+  },
+  "hostEvidence": {
+    "actualSha256": "c04bfec6333a0e70d763ba93ec2fff7bf3f7b6241b6b75c4d5c1d57a571084e0",
+    "sealedResourceSha256": "c04bfec6333a0e70d763ba93ec2fff7bf3f7b6241b6b75c4d5c1d57a571084e0",
+    "codeSignatureValid": true,
+    "codesignStrictValid": false,
+    "matchesExpected": true,
+    "unmodifiedRuntimeVerified": false
+  },
+  "evidenceSources": [
+    "ordinary Chrome UI observations with correlated official events",
+    "read-only verification of test-owned persisted sessions"
+  ],
+  "results": [
+    {
+      "agentId": "ekko-agent",
+      "mode": "studio",
+      "status": "passed",
+      "terminal": "database_completed",
+      "failureCategory": null,
+      "evidence": {
+        "rootObservedOfficialUi": true,
+        "ownedPromptPersisted": true,
+        "assistantPersisted": true,
+        "targetAnswerPersisted": true,
+        "profileAndAgentScopeMatched": true,
+        "uiReplyMarkerVisible": true,
+        "uiSocketRunAndTerminalCaptured": false,
+        "sessionEnded": true
+      }
+    },
+    {
+      "agentId": "hermes",
+      "mode": "studio",
+      "status": "passed",
+      "terminal": "run.completed",
+      "failureCategory": null,
+      "evidence": {
+        "rootObservedOfficialUi": true,
+        "ownedPromptPersisted": true,
+        "assistantPersisted": true,
+        "targetAnswerPersisted": true,
+        "profileAndAgentScopeMatched": true,
+        "uiReplyMarkerVisible": true,
+        "uiSocketRunAndTerminalCaptured": true,
+        "sessionEnded": true
+      },
+      "elapsedMs": 5000
+    },
+    {
+      "agentId": "claude-code",
+      "mode": "studio",
+      "status": "passed",
+      "terminal": "database_completed",
+      "failureCategory": null,
+      "evidence": {
+        "rootObservedOfficialUi": true,
+        "ownedPromptPersisted": true,
+        "assistantPersisted": true,
+        "targetAnswerPersisted": true,
+        "profileAndAgentScopeMatched": true,
+        "uiReplyMarkerVisible": true,
+        "uiSocketRunAndTerminalCaptured": false,
+        "sessionEnded": true
+      }
+    },
+    {
+      "agentId": "codex",
+      "mode": "studio",
+      "status": "passed",
+      "terminal": "database_completed",
+      "failureCategory": null,
+      "evidence": {
+        "rootObservedOfficialUi": true,
+        "ownedPromptPersisted": true,
+        "assistantPersisted": true,
+        "targetAnswerPersisted": true,
+        "profileAndAgentScopeMatched": true,
+        "uiReplyMarkerVisible": true,
+        "uiSocketRunAndTerminalCaptured": false,
+        "sessionEnded": true
+      }
+    },
+    {
+      "agentId": "pi",
+      "mode": "studio",
+      "status": "passed",
+      "terminal": "run.completed",
+      "failureCategory": null,
+      "evidence": {
+        "rootObservedOfficialUi": true,
+        "ownedPromptPersisted": true,
+        "assistantPersisted": true,
+        "targetAnswerPersisted": true,
+        "profileAndAgentScopeMatched": true,
+        "uiReplyMarkerVisible": true,
+        "uiSocketRunAndTerminalCaptured": true,
+        "sessionEnded": true
+      },
+      "elapsedMs": 5552
+    },
+    {
+      "agentId": "grok",
+      "mode": "studio",
+      "status": "failed",
+      "terminal": "run.failed",
+      "failureCategory": "cli_stream_schema",
+      "evidence": {
+        "rootObservedOfficialUi": true,
+        "ownedPromptPersisted": true,
+        "assistantPersisted": true,
+        "targetAnswerPersisted": true,
+        "profileAndAgentScopeMatched": true,
+        "uiReplyMarkerVisible": false,
+        "uiSocketRunAndTerminalCaptured": true,
+        "sessionEnded": true
+      },
+      "elapsedMs": 8414,
+      "reproductionConfirmed": true
+    },
+    {
+      "agentId": "opencode",
+      "mode": "studio",
+      "status": "passed",
+      "terminal": "run.completed",
+      "failureCategory": null,
+      "evidence": {
+        "rootObservedOfficialUi": true,
+        "ownedPromptPersisted": true,
+        "assistantPersisted": true,
+        "targetAnswerPersisted": true,
+        "profileAndAgentScopeMatched": true,
+        "uiReplyMarkerVisible": true,
+        "uiSocketRunAndTerminalCaptured": true,
+        "sessionEnded": true
+      },
+      "elapsedMs": 34354
+    },
+    {
+      "agentId": "dsh",
+      "mode": "studio",
+      "status": "passed",
+      "terminal": "run.completed",
+      "failureCategory": null,
+      "evidence": {
+        "rootObservedOfficialUi": true,
+        "ownedPromptPersisted": true,
+        "assistantPersisted": true,
+        "targetAnswerPersisted": true,
+        "profileAndAgentScopeMatched": true,
+        "uiReplyMarkerVisible": true,
+        "uiSocketRunAndTerminalCaptured": true,
+        "sessionEnded": true
+      },
+      "elapsedMs": 5841
+    },
+    {
+      "agentId": "cursor",
+      "mode": "native",
+      "status": "passed",
+      "terminal": "run.completed",
+      "failureCategory": null,
+      "evidence": {
+        "rootObservedOfficialUi": true,
+        "ownedPromptPersisted": true,
+        "assistantPersisted": true,
+        "targetAnswerPersisted": true,
+        "profileAndAgentScopeMatched": true,
+        "uiReplyMarkerVisible": true,
+        "uiSocketRunAndTerminalCaptured": true,
+        "sessionEnded": true
+      },
+      "elapsedMs": 25719
+    },
+    {
+      "agentId": "antigravity",
+      "mode": "studio",
+      "status": "passed",
+      "terminal": "run.completed",
+      "failureCategory": null,
+      "evidence": {
+        "rootObservedOfficialUi": true,
+        "ownedPromptPersisted": true,
+        "assistantPersisted": true,
+        "targetAnswerPersisted": true,
+        "profileAndAgentScopeMatched": true,
+        "uiReplyMarkerVisible": true,
+        "uiSocketRunAndTerminalCaptured": true,
+        "sessionEnded": true
+      },
+      "elapsedMs": 5993
+    },
+    {
+      "agentId": "qwen",
+      "mode": "studio",
+      "status": "passed",
+      "terminal": "run.completed",
+      "failureCategory": null,
+      "evidence": {
+        "rootObservedOfficialUi": true,
+        "ownedPromptPersisted": true,
+        "assistantPersisted": true,
+        "targetAnswerPersisted": true,
+        "profileAndAgentScopeMatched": true,
+        "uiReplyMarkerVisible": true,
+        "uiSocketRunAndTerminalCaptured": true,
+        "sessionEnded": true
+      },
+      "elapsedMs": 5421
+    },
+    {
+      "agentId": "kimi",
+      "mode": "studio",
+      "status": "passed",
+      "terminal": "run.completed",
+      "failureCategory": null,
+      "evidence": {
+        "rootObservedOfficialUi": true,
+        "ownedPromptPersisted": true,
+        "assistantPersisted": true,
+        "targetAnswerPersisted": true,
+        "profileAndAgentScopeMatched": true,
+        "uiReplyMarkerVisible": true,
+        "uiSocketRunAndTerminalCaptured": true,
+        "sessionEnded": true
+      },
+      "elapsedMs": 5206
+    },
+    {
+      "agentId": "codebuddy",
+      "mode": "studio",
+      "status": "passed",
+      "terminal": "run.completed",
+      "failureCategory": null,
+      "evidence": {
+        "rootObservedOfficialUi": true,
+        "ownedPromptPersisted": true,
+        "assistantPersisted": true,
+        "targetAnswerPersisted": true,
+        "profileAndAgentScopeMatched": true,
+        "uiReplyMarkerVisible": true,
+        "uiSocketRunAndTerminalCaptured": true,
+        "sessionEnded": true
+      },
+      "elapsedMs": 10344
+    },
+    {
+      "agentId": "qoder",
+      "mode": "native",
+      "status": "failed",
+      "terminal": "run.failed",
+      "failureCategory": "model_unavailable",
+      "evidence": {
+        "rootObservedOfficialUi": true,
+        "ownedPromptPersisted": true,
+        "assistantPersisted": true,
+        "targetAnswerPersisted": false,
+        "profileAndAgentScopeMatched": true,
+        "uiReplyMarkerVisible": false,
+        "uiSocketRunAndTerminalCaptured": true,
+        "sessionEnded": true
+      },
+      "elapsedMs": 9248
+    },
+    {
+      "agentId": "copilot",
+      "mode": "studio",
+      "status": "passed",
+      "terminal": "run.completed",
+      "failureCategory": null,
+      "evidence": {
+        "rootObservedOfficialUi": true,
+        "ownedPromptPersisted": true,
+        "assistantPersisted": true,
+        "targetAnswerPersisted": true,
+        "profileAndAgentScopeMatched": true,
+        "uiReplyMarkerVisible": true,
+        "uiSocketRunAndTerminalCaptured": true,
+        "sessionEnded": true
+      },
+      "elapsedMs": 3841
+    },
+    {
+      "agentId": "zcode",
+      "mode": "studio",
+      "status": "passed",
+      "terminal": "run.completed",
+      "failureCategory": null,
+      "evidence": {
+        "rootObservedOfficialUi": true,
+        "ownedPromptPersisted": true,
+        "assistantPersisted": true,
+        "targetAnswerPersisted": true,
+        "profileAndAgentScopeMatched": true,
+        "uiReplyMarkerVisible": true,
+        "uiSocketRunAndTerminalCaptured": true,
+        "sessionEnded": true
+      },
+      "elapsedMs": 5701
+    }
+  ],
+  "supplementalMatrix": {
+    "source": "clean-scoped-matrix-v4-3405140f99.json",
+    "executed": 16,
+    "verified": 13,
+    "resultPreserved": true,
+    "claudeTimedOut": true,
+    "doesNotOverrideUiResults": true
+  },
+  "laterUiAttemptsExcluded": 1,
+  "notes": [
+    "16个官方Agent逐个通过普通网页界面测试，14项收到回复，2项保留失败。没有用固件编译或模拟替代实体设备验收。",
+    "前三项结合实际界面观察与已完成测试会话持久记录；其余十三项有发送及终态事件。",
+    "Grok复测确认CLI流解析拒绝response.metadata；未修改提供方配置或官方核心来绕过。",
+    "Qoder原生CLI报告模型不可用；没有自动改选其他Agent。",
+    "独立补充矩阵Claude超时如实保留，不被另一次普通UI成功覆盖。",
+    "隔离实例只复制了所需模型和语音配置及必要CLI认证组件，未复制日常会话/数据库。Hermes OAuth未导入，因此有效默认提供方与日常实例可能不同。",
+    "全部已封装资源仍匹配官方签名清单；严格签名检查因运行时生成Python缓存失败，未将其声称为整目录完全不变。",
+    "这些结果不是M5屏幕、麦克风、实际声音或完整断线恢复验收。"
+  ],
+  "sourceFirmware": "cardputer-adv-v10.0.0-alpha.5"
+}

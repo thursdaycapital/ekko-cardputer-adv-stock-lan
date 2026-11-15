@@ -8,3 +8,6 @@ private/
 *.log
 *.sqlite*
 *.db
+
+# Reviewed application artifact only; private full-flash images remain excluded.
+!firmware/ekko-cardputer-next-0x10000.bin

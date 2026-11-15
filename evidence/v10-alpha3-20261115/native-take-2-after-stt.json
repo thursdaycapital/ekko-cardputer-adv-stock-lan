@@ -1,0 +1,120 @@
+{
+  "firmware": "cardputer-adv-v10.0.0-alpha.3",
+  "uptimeMs": 207116,
+  "agent": "codex",
+  "application": {
+    "revision": 10,
+    "connection": 4,
+    "page": 1,
+    "activation": 6,
+    "turn": 2,
+    "desired_mode": 2,
+    "active_mode": 1,
+    "review_phase": 0,
+    "wifi_joining": false,
+    "loop_longest_gap_ms": 64,
+    "connect_busy": false,
+    "connect_error": 0,
+    "connect_stack_free": 3904,
+    "auth_busy": false,
+    "auth_error": 255,
+    "auth_stage": 0,
+    "auth_stack_free": 0,
+    "auth_elapsed_ms": 0
+  },
+  "navigation": {
+    "left": 0,
+    "right": 0,
+    "up": 0,
+    "down": 0,
+    "ok": 3,
+    "back": 1,
+    "queued": 0,
+    "dropped": 0
+  },
+  "memory": {
+    "free_heap": 102056,
+    "min_free_heap": 27008,
+    "max_alloc_heap": 86004,
+    "loop_stack_min_free_bytes": 4540
+  },
+  "lastTake": {
+    "take_id": 2,
+    "outcome": 1,
+    "stop_reason": "wall_limit",
+    "wall_ms": 5000,
+    "frames": 78848,
+    "pcm_bytes": 157696,
+    "encoded_bytes": 39424,
+    "stt_started": true
+  },
+  "sttLast": {
+    "present": true,
+    "take_id": 2,
+    "metrics_available": true,
+    "error": 0,
+    "http": 200,
+    "stack_min_free_bytes": 10172,
+    "heap_min_observed_bytes": 41556,
+    "largest_min_observed_bytes": 24564,
+    "boot_heap_min_bytes": 27008
+  },
+  "capture": {
+    "active": false,
+    "take_id": 2,
+    "error": 0,
+    "sample_rate": 16000,
+    "buffer_bytes": 0,
+    "storage_retained": false,
+    "produced_blocks": 77,
+    "consumed_blocks": 77,
+    "max_ready_blocks": 1,
+    "overruns": 0,
+    "invalid_callbacks": 0,
+    "discarded_after_join": 1
+  },
+  "stream": {
+    "queued": 173,
+    "released": 173,
+    "in_flight": 0,
+    "claim_failures": 0,
+    "cancelled_unqueued": 0,
+    "rejected_releases": 0,
+    "discarded_after_join": 0,
+    "source_empty_before_submit": 1,
+    "max_submit_gap_us": 57540,
+    "write_timeouts": 0,
+    "buffer_bytes": 6144
+  },
+  "recordingMemory": {
+    "heap_start_bytes": 114984,
+    "heap_min_observed_bytes": 36084,
+    "largest_min_observed_bytes": 19444,
+    "worker_free_before_bytes": 69820,
+    "worker_largest_before_bytes": 51188,
+    "task_stack_bytes": 16384
+  },
+  "chat": {
+    "ready": true,
+    "accepted": 2,
+    "received_chunks": 1,
+    "send_unknown": true
+  },
+  "connection": {
+    "transport": "lan-standard",
+    "namespace_ready": true,
+    "management_online": true,
+    "saved_binding_matches": true
+  },
+  "latestVoiceTask": {
+    "error": 0,
+    "type": 0,
+    "completions": 3,
+    "http": 200,
+    "metrics_available": true,
+    "stack_min_free_bytes": 10172,
+    "heap_min_observed_bytes": 41556,
+    "largest_min_observed_bytes": 24564,
+    "boot_heap_min_bytes": 27008
+  }
+}

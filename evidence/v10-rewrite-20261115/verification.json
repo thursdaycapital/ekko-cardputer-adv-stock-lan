@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "firmwareVersion": "cardputer-adv-v10.0.0-alpha.1",
+  "build": {
+    "target": "cardputer-adv",
+    "chip": "ESP32-S3",
+    "flashBytes": 8388608,
+    "psram": false,
+    "applicationBytes": 3313840,
+    "applicationSlotBytes": 3342336,
+    "remainingSlotBytes": 28496,
+    "staticRamBytes": 115764,
+    "sha256": "6698ec8b51445b6b7295d29532cfdec04bfcbef8600acd34ec47f635a994724d"
+  },
+  "host": {
+    "protocolStateProgramsPassed": 34,
+    "chatAndIme": true,
+    "renderAndFont": true,
+    "fixedUiMissingGlyphs": 0,
+    "voiceFormats": [
+      "mp3",
+      "pcm-wav",
+      "explicit-raw-pcm"
+    ],
+    "recordingUploadSliceCombinations": 36,
+    "pcmSourceBytesTested": 160000,
+    "ramEncodedBytesTested": 40000,
+    "concurrentAudioQueueChunks": 6000,
+    "httpTransport": true,
+    "realStudioUpgradeRoundsPassed": 3,
+    "realStudioVersion": "0.8.22",
+    "desktopFilesModifiedByThisWork": false,
+    "desktopPristinePackageVerified": false
+  },
+  "flash": {
+    "application_matches": true,
+    "boot_partition_and_preferences_unchanged": true,
+    "factory_and_storage_unchanged": true,
+    "bytes": 8388608,
+    "application_sha256": "6698ec8b51445b6b7295d29532cfdec04bfcbef8600acd34ec47f635a994724d"
+  },
+  "physical": {
+    "newFirmwareExecuted": true,
+    "singleOkEntered": null,
+    "typedChineseReply": false,
+    "shortG0Returned": null,
+    "shortVoiceRecognizedRepliedAndAudible": null,
+    "fiveSecondVoiceCompletedAndAudible": null,
+    "recoveryMatrixCompleted": false,
+    "typedChineseInputSubmitted": true,
+    "enteredChatUserConfirmed": true,
+    "selectedCodexUserConfirmed": true
+  },
+  "status": "alpha1-physical-input-working-backend-errors-confirmed",
+  "privacy": {
+    "nvsIncluded": false,
+    "fullBackupIncluded": false,
+    "rawLogsIncluded": false,
+    "jwtIncluded": false,
+    "apiKeysIncluded": false
+  },
+  "backendFindings": [
+    {
+      "severity": "high",
+      "confidence": "high",
+      "agent": "ekko-agent",
+      "studioVersion": "0.8.22",
+      "error": "PLUGIN_SCHEMA",
+      "stage": "host-context-json-validation-before-plugin-handler",
+      "rawDiagnosticPublished": false
+    },
+    {
+      "severity": "medium",
+      "confidence": "high",
+      "agent": "codex",
+      "mode": "scoped",
+      "httpStatus": 429,
+      "quotaOrRateLimitDistinguished": false
+    }
+  ],
+  "observations": {
+    "connectTaskFreeStackBytes": 3912,
+    "freeHeapBytesObserved": 102620,
+    "unconfirmedRebootClaimWithdrawn": true,
+    "probeTransport": "direct-no-proxy-with-fresh-query"
+  }
+}

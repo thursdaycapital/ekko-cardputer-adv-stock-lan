@@ -1,13 +1,13 @@
 # 构建、修改和重新链接
 
-本发布只分发 Ekko `cardputer-adv-v9.0.0-dev.10-ram-lan` 应用；公开预览标签为 `v9.0.0-dev.10-lan`，二者对应同一个已实测应用，不是两份不同固件。原厂应用本次没有重新分发。
+当前候选为 `cardputer-adv-v10.0.0-alpha.3`，应用为 `firmware/ekko-cardputer-next-0x10000.bin`；源码构建提交、尺寸和哈希以根 manifest 为准。它没有公开发布，也未完成完整实机矩阵。仓库中另存的 v9 dev10 应用及其历史证据仅供回退；精简 alpha3 交付包只包含新的 Ekko 应用。原厂应用本次没有重新分发。
 
 ## 原配置构建
 
 在仓库根目录执行：
 
 ```sh
-uvx --from platformio pio run -d source -e cardputer-adv
+uvx --from platformio==6.2.0 pio run -d source -e cardputer-adv
 ```
 
 固定平台为 espressif32@7.0.1；Arduino 框架 `3.20017.241212+sha.dcc1105b`（Arduino2.0.17），GCC8.4.0+2021r2-patch5、SDK4.4.7。项目库精确版本见 `source/platformio.ini`。首次构建会下载固定依赖及工具链，不是完全离线的工具链包。源码、生成头、字体／头像／视频数据和构建脚本均保留。
@@ -21,8 +21,8 @@ uvx --from platformio pio run -d source -e cardputer-adv
 完整应用源码与构建配置均提供；用修改后的库进行干净重建，即可生成可替换执行文件。构建产物／对象／ELF／map位于 `source/.pio/build/cardputer-adv/`，公共源包不包含开发者原有`.pio`、私人配置或完整Flash读出。本项目没有增加禁止修改LGPL部分、替换／重新链接它们或为调试这些修改而逆向工程的限制。
 
 ```sh
-uvx --from platformio pio run -d source -e cardputer-adv -t clean
-uvx --from platformio pio run -d source -e cardputer-adv
+uvx --from platformio==6.2.0 pio run -d source -e cardputer-adv -t clean
+uvx --from platformio==6.2.0 pio run -d source -e cardputer-adv
 ```
 
 SDK和工具链原声明位于 `source/licenses/`，各库及素材的原文保留，不用根BSL许可覆盖LGPL、MIT、Apache、字体或其他第三方条款。准确材料与比对范围见 `evidence/arduino-source-correspondence.json`。不同路径、日期及工具环境可能改变重建字节，不承诺字节级重现。

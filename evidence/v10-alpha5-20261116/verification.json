@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "firmwareVersion": "cardputer-adv-v10.0.0-alpha.5",
+  "sourceCommit": "9e8f2aa38cdd39a19db0423e3d1afe87a1237f81",
+  "applicationSha256": "96e29f0aca8160e902f7cc56d8cac4446b435987b64fe0a800bc11f741d002c0",
+  "hostProgramsPassed": 34,
+  "integrationSafetyTestsPassed": 31,
+  "dailyHarnessTestsPassed": 30,
+  "chineseUiCharacters": 392,
+  "missingGlyphs": 0,
+  "targetBuildPassed": true,
+  "staticRamBytes": 115916,
+  "flashReadbackVerified": true,
+  "desktopUiMatrix": "desktop-ui-matrix.json",
+  "physicalDeviceAcceptanceComplete": false,
+  "recoveryMatrix": {
+    "m5PowerCycle": "pending",
+    "wifiDrop3s": "pending",
+    "wifiDrop12s": "pending",
+    "studioRestart": "pending",
+    "tokenTimeExpiry": "pending",
+    "uncertainSendNoDuplicate": "pending"
+  },
+  "alpha5TextVoiceHistory": "pending",
+  "historicalAlpha3PhysicalEvidence": "../v10-alpha3-20261115/verification.json",
+  "remoteTested": false,
+  "privateDataIncluded": false,
+  "publicSourceTreeMatchesBuildInputs": true
+}
