@@ -3,7 +3,7 @@
   "releaseTag": "v10.0.0-alpha.5",
   "firmwareVersion": "cardputer-adv-v10.0.0-alpha.5",
   "releaseChannel": "development-preview",
-  "sourceCommit": "9e8f2aa38cdd39a19db0423e3d1afe87a1237f81",
+  "sourceCommit": "d087ae02d5c13ae0ac711a09415cfe8aa31ddcc4",
   "createdAtUtc": "2026-11-15T16:39:43.068505+00:00",
   "application": {
     "file": "firmware/ekko-cardputer-next-0x10000.bin",
@@ -61,15 +61,17 @@
     "nativeDefaultCatalogAdvisory": true
   },
   "sourceArchive": {
-    "file": "cardputer-adv-source-v10.0.0-alpha.5.tar.gz",
-    "bytes": 10158588,
-    "sha256": "23a8756227552906965be0aded09a7c14528f6455279357422eede93d3c2e258",
-    "sourceCommit": "9e8f2aa38cdd39a19db0423e3d1afe87a1237f81"
+    "file": "cardputer-adv-source-v10.0.0-alpha.5-r2.tar.gz",
+    "bytes": 10157492,
+    "sha256": "a495bef8c1fa6394009610eb965dd9ba2f479b165ace238e3cfc2821bce7dfae",
+    "sourceCommit": "d087ae02d5c13ae0ac711a09415cfe8aa31ddcc4"
   },
   "releaseAssets": {
     "application": "cardputer-adv-v10.0.0-alpha.5-update-0x10000.bin",
-    "source": "cardputer-adv-source-v10.0.0-alpha.5.tar.gz"
+    "source": "cardputer-adv-source-v10.0.0-alpha.5-r2.tar.gz"
   },
   "releasePage": "https://github.com/thursdaycapital/ekko-cardputer-adv-stock-lan/releases/tag/v10.0.0-alpha.5",
-  "acceptanceStatus": "physical-recovery-incomplete"
+  "acceptanceStatus": "physical-recovery-incomplete",
+  "sourceTreeSha": "b30da3a2c9b9e36ff211df487b2bd44dd550fa63",
+  "documentationRevision": 2
 }
