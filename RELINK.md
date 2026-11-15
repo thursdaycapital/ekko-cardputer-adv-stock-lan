@@ -1,6 +1,6 @@
 # 构建、修改和重新链接
 
-当前候选为 `cardputer-adv-v10.0.0-alpha.3`，应用为 `firmware/ekko-cardputer-next-0x10000.bin`；源码构建提交、尺寸和哈希以根 manifest 为准。它没有公开发布，也未完成完整实机矩阵。仓库中另存的 v9 dev10 应用及其历史证据仅供回退；精简 alpha3 交付包只包含新的 Ekko 应用。原厂应用本次没有重新分发。
+当前开发预览为 `cardputer-adv-v10.0.0-alpha.5`，应用为 `firmware/ekko-cardputer-next-0x10000.bin`。源码、尺寸和哈希以根 `firmware-manifest.json` 为准；本版已公开发布开发预览，完整实体恢复验收尚未完成。历史v9应用及其证据只作回退参考。原厂应用本次没有重新分发。
 
 ## 原配置构建
 
