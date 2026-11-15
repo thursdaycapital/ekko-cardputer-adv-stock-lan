@@ -25,5 +25,14 @@
   "historicalAlpha3PhysicalEvidence": "../v10-alpha3-20261115/verification.json",
   "remoteTested": false,
   "privateDataIncluded": false,
-  "publicSourceTreeMatchesBuildInputs": true
+  "publicSourceTreeMatchesBuildInputs": true,
+  "optionalPlugin": {
+    "repository": "https://github.com/thursdaycapital/ekko-studio-plugin-cardputer-adv",
+    "version": "0.2.0-alpha.5",
+    "ordinaryDailyInstallAndFourViewsPassed": true,
+    "officialCorePatched": false,
+    "realDevices": 1,
+    "lanConnectedDevices": 0,
+    "evidence": "https://github.com/thursdaycapital/ekko-studio-plugin-cardputer-adv/blob/main/docs/evidence/daily-official-host-0.8.24-20261116.json"
+  }
 }

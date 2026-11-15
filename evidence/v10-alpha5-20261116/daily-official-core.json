@@ -30,5 +30,6 @@
       "replyVisible": true,
       "replyPersisted": true
     }
-  ]
+  ],
+  "scope": "Official core restoration and chat check before optional plugin installation"
 }

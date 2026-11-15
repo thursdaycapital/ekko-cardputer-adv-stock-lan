@@ -38,3 +38,5 @@ Grok的CLI不能解析当前提供方的 `response.metadata` 事件，官方网�
 ## 源码和许可
 
 [构建说明](source/README.zh-CN.md) · [第三方说明](THIRD_PARTY_NOTICES.md) · [验收范围](验收范围.zh-CN.md)。Ekko派生内容保留上游BSL 1.1；库、字体、字典、SDK与素材分别遵循原许可，不代表上游品牌背书。可选管理插件只提供状态和说明，聊天不依赖插件，不宣称网页一键刷机。
+
+可选插件已在日常官方0.8.24通过实际安装：在「插件中心」粘贴 `https://github.com/thursdaycapital/ekko-studio-plugin-cardputer-adv`，确认信任并安装，再启用即可。[插件仓库与三步指南](https://github.com/thursdaycapital/ekko-studio-plugin-cardputer-adv)。四页、真实设备列表及固件／源码校验通过；当前后台登记1台设备、局域网在线0台，不据此宣称M5实体测试完成。
