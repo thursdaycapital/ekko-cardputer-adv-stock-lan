@@ -1,6 +1,6 @@
 # Ekko Studio · M5Stack Cardputer-Adv
 
-**v10.0.0-alpha.6 本地发布候选，尚未发布 GitHub；仅局域网，完整实体验收尚未完成。**
+**v10.0.0-alpha.6 开发候选：源码已同步 GitHub，Release 仍为草稿；仅局域网，完整实体验收尚未完成。**
 
 直接连接官方 Ekko Studio，无需修改电脑端核心或另起桥接服务。保留 16 Agent、中文输入、12px 字体、官方头像、启动视频、按键声及设备已有原厂工具。Ekko 聊天录音使用有界 RAM，不需要 SD 卡。
 
@@ -44,4 +44,6 @@
 
 [源码说明](source/README.zh-CN.md) · [第三方许可](THIRD_PARTY_NOTICES.md) · [交付范围](交付范围.zh-CN.md)。上游派生内容保留 BSL 1.1；库、字体、字典和素材分别遵循原许可，不代表上游品牌背书。
 
-聊天不依赖可选插件。已发布的 [Cardputer 管理插件](https://github.com/thursdaycapital/ekko-studio-plugin-cardputer-adv) 仍是 alpha5 配套版本，本轮不修改、不重新发布其固件目录，也不声称其已绑定 alpha6。本候选须经 root 最终验收后才能发布。
+聊天不依赖可选插件。已发布的 [Cardputer 管理插件](https://github.com/thursdaycapital/ekko-studio-plugin-cardputer-adv) 仍是 alpha5 配套版本，本轮不修改、不重新发布其固件目录，也不声称其已绑定 alpha6。当前按用户要求暂停后续实体测试，完成剩余验收后再正式发布。
+
+用户已确认打字、历史、识别和实际声音正常。本轮日志确认 Codex 原生运行完成、STT/TTS 均成功、采集无溢出；可读取的录音为松手停止约4.94秒，因此不把本轮写成五秒自动截止证据。其他15个Agent、Wi-Fi断线、断电与完整压力测试继续待验。见 `evidence/v10-alpha6-20261116/voice-observation.json`。

@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "firmwareVersion": "cardputer-adv-v10.0.0-alpha.6",
+  "userReportedFunctional": true,
+  "sameBootObserved": true,
+  "estimatedBootAtUtc": "2026-11-16T04:46:57.195325+00:00",
+  "inputAndHistoryIndependentlyCorrelatedToThisBoot": false,
+  "fiveSecondAutoStopObserved": false,
+  "observations": [
+    {
+      "observedAtUtc": "2026-11-16T04:48:09.335325+00:00",
+      "uptimeMs": 72140,
+      "sendUnknown": true,
+      "sending": false,
+      "turnPhase": 2,
+      "reviewPhase": 0,
+      "acceptedRuns": 1,
+      "receivedTextDeltaEvents": 1,
+      "keyboardEvents": 0,
+      "imeCommits": 0,
+      "historyToggles": 0,
+      "scrollUp": 0,
+      "scrollDown": 0,
+      "latestVoiceJobType": 0,
+      "voiceJobCompletions": 1
+    },
+    {
+      "observedAtUtc": "2026-11-16T04:49:20.066922+00:00",
+      "uptimeMs": 142863,
+      "sendUnknown": false,
+      "sending": false,
+      "turnPhase": 0,
+      "reviewPhase": 3,
+      "acceptedRuns": 1,
+      "receivedTextDeltaEvents": 1,
+      "keyboardEvents": 0,
+      "imeCommits": 0,
+      "historyToggles": 0,
+      "scrollUp": 0,
+      "scrollDown": 0,
+      "latestVoiceJobType": 1,
+      "voiceJobCompletions": 2
+    }
+  ],
+  "recording": {
+    "takeId": 1,
+    "stopReason": "released",
+    "wallMs": 4940,
+    "frames": 77824,
+    "pcmBytes": 155648,
+    "imaBytes": 38912,
+    "sttStarted": true
+  },
+  "stt": {
+    "takeId": 1,
+    "present": true,
+    "captureTakeMatches": true,
+    "http": 200,
+    "error": 0,
+    "metrics_available": true,
+    "stack_min_free_bytes": 10180,
+    "heap_min_observed_bytes": 42500,
+    "largest_min_observed_bytes": 24564
+  },
+  "tts": {
+    "jobType": 1,
+    "voiceJobCompletions": 2,
+    "http": 200,
+    "error": 0,
+    "metrics_available": true,
+    "stack_min_free_bytes": 27876,
+    "heap_min_observed_bytes": 45872,
+    "largest_min_observed_bytes": 21492
+  },
+  "backend": {
+    "source": "coding_agent",
+    "agent": "codex",
+    "mode": "global",
+    "association": "same-private-session-and-only-post-boot-user-turn",
+    "postBootUserMessageCount": 1,
+    "userInputAtUtc": "2026-11-16T04:47:34+00:00",
+    "runStartedAtUtc": "2026-11-16T04:47:34.786000+00:00",
+    "finalAssistantPersistedAtUtc": "2026-11-16T04:48:00+00:00",
+    "finalAssistantCharacters": 152,
+    "finalAssistantUtf8Bytes": 388,
+    "finalFinishReason": "stop",
+    "nativeExitAtUtc": "2026-11-16T04:48:12.571000+00:00",
+    "nativeExitCode": 0,
+    "terminalEvent": "run.completed",
+    "terminalAtUtc": "2026-11-16T04:48:12.608000+00:00",
+    "sessionEndReason": "complete"
+  },
+  "sendRecovery": {
+    "initialUnknown": true,
+    "followupUnknown": false,
+    "followupReviewPhase": 3,
+    "initialObservationBeforeTerminal": true,
+    "followupObservationAfterTerminal": true,
+    "nativeStartPayloadOmitsQueueId": true,
+    "explanation": "Official native coding starts omit queue_id; the firmware preserves uncertainty until the observed run ends and matching persisted user history reconciles the send."
+  },
+  "limitations": [
+    "User functionality feedback is retained, but zero keyboard/IME/history counters in this boot do not independently associate typing or history feedback with this boot.",
+    "The observed recording stopped with reason released at4940ms. It is not a five-second automatic wall-clock stop observation and does not override the user report.",
+    "The STT snapshot is explicitly tied to take1. The latest TTS metrics have no independent take identifier; their association is temporal with the single post-boot turn.",
+    "received_chunks counts nonempty message.delta events, not characters or complete messages. Native output and subsequent authoritative history may contain a complete reply with one delta.",
+    "Runtime audio metrics do not independently establish perceived sound quality; actual audibility relies on the user report.",
+    "No additional network/device requests or runtime changes were performed while preparing this evidence after the pause request."
+  ],
+  "capture": {
+    "take_id": 1,
+    "error": 0,
+    "sample_rate": 16000,
+    "produced_blocks": 76,
+    "consumed_blocks": 76,
+    "max_ready_blocks": 1,
+    "overruns": 0,
+    "invalid_callbacks": 0,
+    "discarded_after_join": 1
+  },
+  "resources": {
+    "recordingHeapMinObservedBytes": 37048,
+    "recordingLargestBlockMinObservedBytes": 19444,
+    "bootHeapMinimumBytes": 30728,
+    "loopStackBytes": 12288,
+    "loopStackMinFreeBytes": 4540,
+    "scope": "observed take and this boot only; not a worst-case stress result"
+  },
+  "userRequestedFurtherPhysicalTestsPaused": true
+}

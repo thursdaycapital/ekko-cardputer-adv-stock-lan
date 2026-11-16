@@ -37,8 +37,8 @@
     "automaticStudioIpMigrationSupported": false,
     "nativeDeviceDirectoryRegistration": "passed",
     "managementNamespaceReadyAloneProvesRegistration": false,
-    "physicalAgentRoutes": "pending",
-    "currentAlpha6VoiceHistory": "pending",
+    "physicalAgentRoutes": "codex-native-verified-other-15-pending",
+    "currentAlpha6VoiceHistory": "user-confirmed-functions-stt-tts-observed-auto-stop-and-input-history-correlation-pending",
     "nativeDeviceLanConnected": true
   },
   "recording": {
@@ -88,11 +88,13 @@
   "acceptanceStatus": "partial-physical-recovery-verified-wifi-and-agent-matrix-pending",
   "sourceTreeSha": "4da54dfc227eafa0031e00ed35a0e3c5387ff5fc",
   "documentationRevision": 2,
-  "publicationStatus": "not-published-pending-root-acceptance",
+  "publicationStatus": "github-draft-physical-acceptance-paused",
   "compiledSourceCommit": "dd499409d1c7c31c6079a1673a76a8966888c7b1",
   "integrationOriginCommit": "3157c4b71a1fa92a6cb6afb6524bc862d5491840",
   "artifactValidation": "evidence/v10-alpha6-20261116/artifact-validation.json",
   "offlineValidation": "evidence/v10-alpha6-20261116/offline-validation.json",
   "sourceCorrespondence": "evidence/v10-alpha6-20261116/source-correspondence.json",
-  "nativeDeviceDirectoryEvidence": "evidence/v10-alpha6-20261116/daily-native-presence.json"
+  "nativeDeviceDirectoryEvidence": "evidence/v10-alpha6-20261116/daily-native-presence.json",
+  "userRequestedPhysicalTestsPaused": true,
+  "voiceObservationEvidence": "evidence/v10-alpha6-20261116/voice-observation.json"
 }

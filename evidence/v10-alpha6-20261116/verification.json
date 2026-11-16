@@ -5,7 +5,7 @@
   "integrationOriginCommit": "3157c4b71a1fa92a6cb6afb6524bc862d5491840",
   "applicationSha256": "9208e53b8336523b50a3d49ce5a18f559f9aa79a885bef6df2deaf201c930230",
   "targetBuildPassed": true,
-  "targetBuildEvidenceOrigin": "root active build and exact artifact hash",
+  "targetBuildEvidenceOrigin": "active target build and exact artifact hash",
   "hostProgramsPassed": 34,
   "integrationSafetyTestsPassed": 35,
   "dailyHarnessTestsPassed": 30,
@@ -14,7 +14,7 @@
   "staticRamBytes": 115916,
   "flashReadbackVerified": true,
   "physicalDeviceAcceptanceComplete": false,
-  "currentAlpha6ChatInputVoiceHistory": "pending",
+  "currentAlpha6ChatInputVoiceHistory": "user-confirmed-functions-stt-tts-observed-auto-stop-and-input-history-correlation-pending",
   "recoveryMatrix": {
     "tokenTimeExpiry": "passed",
     "studioNormalRestart": "passed",
@@ -25,8 +25,15 @@
   },
   "physicalAgentMatrix": {
     "requested": 16,
-    "executed": 0,
-    "status": "pending"
+    "executed": 1,
+    "passed": 1,
+    "remaining": 15,
+    "status": "paused-pending-user",
+    "verifiedCanonicalAgent": "codex",
+    "verifiedMode": "native",
+    "evidence": "voice-observation.json",
+    "batchMatrixStarted": false,
+    "executionScope": "one current-alpha6 microphone submission through the actual Codex native runtime; other agents not exercised on this build"
   },
   "desktopUiMatrix": {
     "source": "../v10-alpha5-20261116/desktop-ui-matrix.json",
@@ -40,12 +47,14 @@
   "flashEvidence": "flash-verification.json",
   "remoteTested": false,
   "privateDataIncluded": false,
-  "publication": "not-published-pending-root-acceptance",
+  "publication": "github-draft-physical-acceptance-paused",
   "authRecoveryEvidence": "auth-recovery.json",
   "sourceTreeSha": "4da54dfc227eafa0031e00ed35a0e3c5387ff5fc",
   "nativeDeviceDirectoryRegistration": "passed",
   "managementNamespaceReadyAloneProvesRegistration": false,
   "automaticStudioIpMigrationSupported": false,
   "nativeDeviceLanConnected": true,
-  "nativeDeviceDirectoryEvidence": "daily-native-presence.json"
+  "nativeDeviceDirectoryEvidence": "daily-native-presence.json",
+  "userRequestedPhysicalTestsPaused": true,
+  "voiceObservationEvidence": "voice-observation.json"
 }
