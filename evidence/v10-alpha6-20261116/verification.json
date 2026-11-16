@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "firmwareVersion": "cardputer-adv-v10.0.0-alpha.6",
+  "compiledSourceCommit": "dd499409d1c7c31c6079a1673a76a8966888c7b1",
+  "integrationOriginCommit": "3157c4b71a1fa92a6cb6afb6524bc862d5491840",
+  "applicationSha256": "9208e53b8336523b50a3d49ce5a18f559f9aa79a885bef6df2deaf201c930230",
+  "targetBuildPassed": true,
+  "targetBuildEvidenceOrigin": "root active build and exact artifact hash",
+  "hostProgramsPassed": 34,
+  "integrationSafetyTestsPassed": 35,
+  "dailyHarnessTestsPassed": 30,
+  "chineseUiCharacters": 392,
+  "missingGlyphs": 0,
+  "staticRamBytes": 115916,
+  "flashReadbackVerified": true,
+  "physicalDeviceAcceptanceComplete": false,
+  "currentAlpha6ChatInputVoiceHistory": "pending",
+  "recoveryMatrix": {
+    "tokenTimeExpiry": "passed",
+    "studioNormalRestart": "passed",
+    "m5PowerCycle": "pending",
+    "wifiDrop3s": "pending",
+    "wifiDrop12s": "pending",
+    "uncertainSendNoDuplicate": "pending"
+  },
+  "physicalAgentMatrix": {
+    "requested": 16,
+    "executed": 0,
+    "status": "pending"
+  },
+  "desktopUiMatrix": {
+    "source": "../v10-alpha5-20261116/desktop-ui-matrix.json",
+    "testedVersion": "0.8.24",
+    "requested": 16,
+    "passed": 14,
+    "failed": 2,
+    "historicalDesktopEvidence": true,
+    "doesNotSubstitutePhysicalDeviceTests": true
+  },
+  "flashEvidence": "flash-verification.json",
+  "remoteTested": false,
+  "privateDataIncluded": false,
+  "publication": "not-published-pending-root-acceptance",
+  "authRecoveryEvidence": "auth-recovery.json",
+  "sourceTreeSha": "4da54dfc227eafa0031e00ed35a0e3c5387ff5fc",
+  "nativeDeviceDirectoryRegistration": "pending",
+  "managementNamespaceReadyAloneProvesRegistration": false,
+  "automaticStudioIpMigrationSupported": false
+}

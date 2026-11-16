@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "firmwareVersion": "cardputer-adv-v10.0.0-alpha.6",
+  "applicationBytes": 3321072,
+  "applicationSha256": "9208e53b8336523b50a3d49ce5a18f559f9aa79a885bef6df2deaf201c930230",
+  "sourceCommit": "dd499409d1c7c31c6079a1673a76a8966888c7b1",
+  "verifiedAtUtc": "2026-11-16T01:51:22.615787+00:00",
+  "privateFullBackupRetained": true,
+  "applicationMatches": true,
+  "prefixUnchanged": true,
+  "factoryAndStorageUnchanged": true,
+  "physicalRuntimeAcceptanceComplete": false
+}

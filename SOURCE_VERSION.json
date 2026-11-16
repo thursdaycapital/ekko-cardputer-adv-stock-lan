@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "firmwareVersion": "cardputer-adv-v10.0.0-alpha.6",
+  "compiledSourceCommit": "dd499409d1c7c31c6079a1673a76a8966888c7b1",
+  "integrationOriginCommit": "3157c4b71a1fa92a6cb6afb6524bc862d5491840",
+  "publicBaseCommit": "5b03436278ff72cda073d7e04d76dba06e3a7f47",
+  "applicationSha256": "9208e53b8336523b50a3d49ce5a18f559f9aa79a885bef6df2deaf201c930230",
+  "applicationBytes": 3321072,
+  "applicationOffset": "0x10000",
+  "publication": "not-published-pending-root-acceptance",
+  "sourceArchiveContents": [
+    "source/",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "RELINK.md",
+    "SOURCE_VERSION.json"
+  ],
+  "sourceArchiveContainsFirmware": false,
+  "sourceArchiveContainsPrivateData": false,
+  "sourceTreeSha": "4da54dfc227eafa0031e00ed35a0e3c5387ff5fc"
+}
