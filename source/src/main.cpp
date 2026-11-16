@@ -57,7 +57,7 @@
 
 namespace {
 #ifndef HERMES_MCU_FIRMWARE_VERSION
-#define HERMES_MCU_FIRMWARE_VERSION "cardputer-adv-v10.0.0-alpha.5"
+#define HERMES_MCU_FIRMWARE_VERSION "cardputer-adv-v10.0.0-alpha.6"
 #endif
 #ifndef HERMES_MCU_FIRMWARE_MANIFEST_PATH
 #define HERMES_MCU_FIRMWARE_MANIFEST_PATH "/api/studio/mcu/firmware/cardputer-adv/manifest"

@@ -49,6 +49,19 @@ int main() {
   auto input=make();Fake good;auto result=resolve(input,good);
   assert(result.error==Error::Ok&&result.stage==Stage::Complete&&result.epoch==7);
   assert(std::strcmp(result.jwt.data(),"test.jwt.value")==0&&good.probes==1&&good.posts==1);
+  // Official Studio exposes a PEM public key, whose decoded LF/CRLF line
+  // breaks are valid metadata. Exercise the actual reauthentication pipeline,
+  // including one-byte SAX delivery and the subsequent credential POST.
+  for(const std::string& newline:{std::string("\\n"),std::string("\\r\\n")}) {
+    Fake pem;
+    const std::string key="-----BEGIN PUBLIC KEY-----"+newline+
+        "MCowBQYDK2VwAyEA11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo="+newline+
+        "-----END PUBLIC KEY-----"+newline;
+    pem.first="{\"device_id\":\"machine\",\"device_public_key\":\""+key+
+        "\",\"endpoint_kind\":\"desktop\",\"http_port\":8748}";
+    auto recovered=resolve(input,pem);
+    assert(recovered.error==Error::Ok&&recovered.stage==Stage::Complete&&pem.posts==1);
+  }
   Fake changed;changed.first="{\"device_id\":\"other\",\"device_public_key\":\"key\",\"endpoint_kind\":\"desktop\",\"http_port\":8748}";
   assert(resolve(input,changed).error==Error::BindingChanged&&changed.posts==0);
   Fake port;port.first="{\"device_id\":\"machine\",\"device_public_key\":\"key\",\"endpoint_kind\":\"desktop\",\"http_port\":8749}";
@@ -59,6 +72,14 @@ int main() {
       std::string("{\"device_id\":\"machine\",\"device_public_key\":\"key\",\"endpoint_kind\":\"desktop\",\"http_port\":\"8748\"}"),
       std::string("{\"device_id\":\"machine\",\"device_public_key\":\"key\",\"endpoint_kind\":\"desktop\",\"http_port\":8748.0}")}) {
     Fake bad;bad.first=broken;assert(resolve(input,bad).error!=Error::Ok&&bad.posts==0);
+  }
+  for(const std::string& broken:{
+      std::string("{\"device_id\":\"machine\\n\",\"device_public_key\":\"key\",\"endpoint_kind\":\"desktop\",\"http_port\":8748}"),
+      std::string("{\"device_id\":\"machine\",\"device_public_key\":\"key\",\"endpoint_kind\":\"desktop\\r\\n\",\"http_port\":8748}"),
+      std::string("{\"device_id\":\"machine\",\"device_public_key\":\"key\\u0000bad\",\"endpoint_kind\":\"desktop\",\"http_port\":8748}"),
+      std::string("{\"device_id\":\"machine\",\"device_public_key\":\"key\\tbad\",\"endpoint_kind\":\"desktop\",\"http_port\":8748}"),
+      std::string("{\"device_id\":\"machine\",\"device_public_key\":\"key\\u0001bad\",\"endpoint_kind\":\"desktop\",\"http_port\":8748}")}) {
+    Fake bad;bad.first=broken;assert(resolve(input,bad).error==Error::InvalidResponse&&bad.posts==0);
   }
   for(int64_t size:{-1,0,8193}){Fake bad;bad.sizeOverride=size;assert(resolve(input,bad).error!=Error::Ok&&bad.posts==0);}
   Fake encoded;encoded.encoding="gzip";assert(resolve(input,encoded).error!=Error::Ok&&encoded.posts==0);
@@ -74,7 +95,7 @@ int main() {
   Fake cancelledLogin;Cancel cancelledAfterPost;cancelledLogin.cancelAfterPost=&cancelledAfterPost;
   auto cancelledToken=resolve(input,cancelledLogin,&cancelledAfterPost);assert(cancelledToken.error==Error::Cancelled&&!cancelledToken.jwt[0]);
   for(const std::string& token:{std::string("{\"token\":\"first\",\"token\":\"second\"}"),std::string("{\"token\":\"a\\u0000b\"}"),
-      std::string("{\"token\":null}"),std::string("{\"token\":\"\"}"),std::string("{\"token\":\"")+std::string(4097,'a')+"\"}"}) {
+      std::string("{\"token\":\"a\\r\\nb\"}"),std::string("{\"token\":null}"),std::string("{\"token\":\"\"}"),std::string("{\"token\":\"")+std::string(4097,'a')+"\"}"}) {
     Fake bad;bad.second=token;auto out=resolve(input,bad);assert(out.error!=Error::Ok&&!out.jwt[0]);
   }
   assert(!makeInput(input,"http://user:password@host:8748","machine|desktop|8748","default","id","user","pass",9));

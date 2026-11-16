@@ -112,8 +112,15 @@ class Sink final:public ResponseSink,public bounded_json::Listener {
       }
       const size_t cap=field==Field::Id?256:field==Field::Kind?63:field==Field::Token?kJwtBytes:4096;
       if(event.size>cap-used_)return false;
-      for(size_t n=0;n<event.size;++n)if(uint8_t(event.data[n])<0x20||uint8_t(event.data[n])==0x7f||
-          ((field==Field::Id||field==Field::Kind)&&event.data[n]=='|'))return false;
+      for(size_t n=0;n<event.size;++n) {
+        const uint8_t byte=uint8_t(event.data[n]);
+        // The official identity API returns a PEM public key. Its decoded
+        // line endings are metadata, never copied into a request/header.
+        // Keep IDs, endpoint kinds and JWTs free of all control characters.
+        const bool pemLine=field==Field::PublicKey&&(byte=='\r'||byte=='\n');
+        if((byte<0x20&&!pemLine)||byte==0x7f||
+            ((field==Field::Id||field==Field::Kind)&&byte=='|'))return false;
+      }
       if(field!=Field::PublicKey) {
         char* target=field==Field::Id?id.data():field==Field::Kind?kind.data():out_.jwt.data();
         std::memcpy(target+used_,event.data,event.size);target[used_+event.size]=0;
