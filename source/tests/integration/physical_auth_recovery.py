@@ -4,6 +4,7 @@
 --execute tests auth recovery ONLY on the verified isolated port19038.
 --stage time-expiry (default) tests actual45-second expiry with a new handshake;
 --stage signature-rotation preserves the separate signing-key recovery test.
+--stage normal-restart checks connection recovery without changing signing or TTL.
 --restore-only recovers the private journal. No Studio/firmware is modified.
 Tokens, process environments and response bodies must never go to stdout.
 """
@@ -313,6 +314,7 @@ class Recovery:
                        "physicalAuthTestExecuted": False, "chatRequests": 0, "paidVoiceCalls": 0,
                        "m5ManualLoginRequests": None, "hostMcuLoginRequests": 0,
                        "timeExpiryStageExecuted": False,
+                       "normalRestartStageExecuted": False,
                        "healthReauthCountersAvailable": False, "stages": [], "findings": []}
 
     def http(self, path, token=None, body=None, device=False, timeout=5):
@@ -599,7 +601,8 @@ class Recovery:
         self.save_state(normalRestored=True, phase="restored")
 
     def execute(self, stage="time-expiry"):
-        require(stage in ("signature-rotation", "time-expiry"), "Unknown authentication test stage")
+        require(stage in ("signature-rotation", "time-expiry", "normal-restart"),
+                "Unknown authentication test stage")
         self.preflight()
         if self.journal.exists():
             previous = json.loads(self.journal.read_text())
@@ -612,11 +615,15 @@ class Recovery:
                       "normalRestored": False, "temporaryBindingObserved": False, "phase": "prepared"}
         self.save_state()
         self.allow_management_login = True
-        self.report.update(mode="execute", authStage=stage, physicalAuthTestExecuted=True)
+        self.report.update(mode="execute", authStage=stage,
+                           physicalAuthTestExecuted=stage != "normal-restart")
         temporary = dict(self.original_environment)
-        temporary["AUTH_JWT_SECRET"] = secrets.token_urlsafe(48)
+        if stage != "normal-restart":
+            temporary["AUTH_JWT_SECRET"] = secrets.token_urlsafe(48)
         try:
-            if stage == "time-expiry":
+            if stage == "normal-restart":
+                self.execute_normal_restart()
+            elif stage == "time-expiry":
                 self.execute_time_expiry(temporary)
                 self.report["authenticationChecksPassed"] = True
             else:
@@ -629,6 +636,25 @@ class Recovery:
             self.restore()
         self.report["passed"] = True
         return self.report
+
+    def execute_normal_restart(self):
+        self.report["recoveryEvidenceMode"] = "connection-restoration-only"
+        self.save_state(phase="normal-restart-starting")
+        # This stage proves reconnection with the existing authentication,
+        # not token renewal or a particular number of native login requests.
+        audit = NativeLoginAudit(self.audit_path, available=False)
+        self.verified_auth_transition = False
+        self.stop()
+        self.start(dict(self.original_environment))
+        self.report["normalRestartStageExecuted"] = True
+        require(self.http("/api/auth/me", self.original["userJwt"])[0] == 200,
+                "Original JWT was not preserved across normal restart")
+        recovered = self.wait_m5(audit, require_native=False)
+        self.report["stages"].append({"name": "normal restart", "originalJwtHttp": 200,
+            "signingEnvironmentUnchanged": True, "machineIdentityUnchanged": True,
+            "forcedFreshHandshake": True, **recovered})
+        self.report["connectionRecoveryChecksPassed"] = True
+        self.save_state(phase="normal-restart-recovered")
 
     def execute_signature_rotation(self, temporary):
         self.save_state(phase="signature-invalidation-starting")
@@ -718,8 +744,9 @@ def main():
     parser.add_argument("--device-state", type=Path, required=True, help="Private health snapshot; only its IP is used")
     parser.add_argument("--nvs-values", type=Path, required=True, help="Private identity snapshot; never printed")
     parser.add_argument("--report", type=Path, help="Optional sanitized evidence output")
-    parser.add_argument("--stage", choices=("time-expiry", "signature-rotation"), default="time-expiry",
-                        help="Executed auth transition; preflight alone never restarts or logs in")
+    parser.add_argument("--stage", choices=("time-expiry", "signature-rotation", "normal-restart"),
+                        default="time-expiry",
+                        help="Executed recovery stage; preflight alone never restarts or logs in")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--execute", action="store_true")
     mode.add_argument("--restore-only", action="store_true")
@@ -757,6 +784,7 @@ def main():
                              "/global-agent additionally accepts a separate process-local agent token; presence alone is insufficient to prove a new user JWT.",
                              "M5 JWT contents are not read. Time expiry first establishes a short-token baseline by preparation-only signing-key rotation; the actual expiry gap keeps the same signing environment.",
                              "An idle authenticated WebSocket need not disconnect at JWT exp; expiry is tested by a new handshake.",
+                             "Normal restart tests connection restoration with the original signing environment; it does not prove token expiry or renewal.",
                              "Authentication recovery does not independently verify a model response or physical audio."]
     if args.report and run:
         private_json(run.report_path, result)

@@ -1,6 +1,8 @@
 """Offline safety regressions. No listener, device, model or voice requests."""
 import hashlib
 import base64
+import contextlib
+import io
 import json
 from pathlib import Path
 import signal
@@ -424,6 +426,117 @@ class RecoverySafetyTests(unittest.TestCase):
 
     def test_interrupt_while_server_is_off_always_restores(self):
         self.exercise_expiry_fixture("interrupted")
+
+    def exercise_normal_restart_fixture(self, fault=None):
+        with tempfile.TemporaryDirectory() as folder:
+            run = auth.Recovery.__new__(auth.Recovery)
+            run.preflight = Mock()
+            run.journal = Path(folder) / "absent.json"
+            run.token_path = Path(folder) / ".token"
+            run.token_path.write_bytes(b"offline-persisted-signing-token")
+            run.original = {"userJwt": "original-observer-token"}
+            run.host_jwt = run.original["userJwt"]
+            run.device_code = "fixture-device"
+            run.original_environment = {"PORT": "19038", "FIXTURE": "unchanged"}
+            run.pid, run.birth = 12345, "fixture"
+            run.report = {"stages": [], "timeExpiryStageExecuted": False}
+            run.agent, run.last_uptime = "fixture-agent", 100
+            run.audit_path = Path(folder) / "absent.log"
+            run.capabilities = {"ordinaryChatJwtContractVerified": True}
+            run.verified_auth_transition = False
+            run.save_state = lambda **updates: run.state.update(updates)
+            run.stop, run.start, run.restore = Mock(), Mock(), Mock()
+            def http(path, token=None, **kwargs):
+                if path == "/api/auth/me":
+                    self.assertEqual(token, "original-observer-token")
+                    return (401 if fault == "original_jwt_invalid" else 200), b"{}"
+                if path == "":
+                    self.assertTrue(kwargs.get("device"))
+                    connection = {"namespace_ready": fault != "namespace_missing", "management_online": True,
+                                  "saved_binding_matches": fault != "binding_mismatch", "http_port": 19038}
+                    return 200, json.dumps({"uptime_ms": 99 if fault == "uptime_backwards" else 101,
+                        "agentId": "other-agent" if fault == "agent_changed" else "fixture-agent",
+                        "connection": connection}).encode()
+                self.assertEqual(path, "/api/mcu-devices")
+                self.assertEqual(token, "original-observer-token")
+                rows = [] if fault == "inventory_missing" else [{"device_code": "fixture-device", "lan_connected": True}]
+                return 200, json.dumps({"devices": rows}).encode()
+            run.http = Mock(side_effect=http)
+            run.new_server_has_m5_tcp = Mock(return_value=fault != "fresh_tcp_missing")
+            with patch.object(auth.time, "monotonic", side_effect=[0, 1, 181]), \
+                    patch.object(auth.time, "sleep"), \
+                    patch.object(auth.secrets, "token_urlsafe", side_effect=AssertionError("No signing-key change")):
+                if fault:
+                    with self.assertRaises(auth.Failure):
+                        run.execute("normal-restart")
+                    result = run.report
+                    self.assertNotIn("passed", result)
+                    self.assertNotIn("connectionRecoveryChecksPassed", result)
+                    self.assertEqual(result["stages"], [])
+                else:
+                    result = run.execute("normal-restart")
+            run.preflight.assert_called_once_with()
+            run.stop.assert_called_once_with()
+            run.start.assert_called_once_with({"PORT": "19038", "FIXTURE": "unchanged"})
+            self.assertEqual(run.http.call_args_list[0].args, ("/api/auth/me", "original-observer-token"))
+            run.restore.assert_called_once_with()
+            self.assertTrue(result["normalRestartStageExecuted"])
+            self.assertFalse(result["timeExpiryStageExecuted"])
+            self.assertFalse(result["physicalAuthTestExecuted"])
+            self.assertNotEqual(result.get("authenticationChecksPassed"), True)
+            if not fault:
+                self.assertTrue(result["passed"])
+                self.assertTrue(result["connectionRecoveryChecksPassed"])
+                self.assertEqual(result["recoveryEvidenceMode"], "connection-restoration-only")
+                run.new_server_has_m5_tcp.assert_called_once_with()
+                stage = result["stages"][0]
+                self.assertEqual(stage["name"], "normal restart")
+                self.assertEqual(stage["originalJwtHttp"], 200)
+                self.assertTrue(stage["signingEnvironmentUnchanged"])
+                self.assertTrue(stage["machineIdentityUnchanged"])
+                self.assertTrue(stage["forcedFreshHandshake"])
+                self.assertFalse(stage["automaticReauthenticationObserved"])
+                self.assertEqual(stage["recoveryEvidenceMode"], "connection-restoration-only")
+                for key in ("nativeLoginAttempts", "nativeLoginCompleted", "nativeLoginRefused"):
+                    self.assertIsNone(stage[key])
+            self.assertNotIn("AUTH_JWT_SECRET", json.dumps(result))
+            self.assertNotIn("original-observer-token", json.dumps(result))
+
+    def test_normal_restart_preserves_signing_environment_and_only_claims_connection_recovery(self):
+        self.exercise_normal_restart_fixture()
+
+    def test_normal_restart_refuses_missing_auth_or_recovery_evidence_and_always_restores(self):
+        for fault in ("original_jwt_invalid", "fresh_tcp_missing", "namespace_missing", "inventory_missing",
+                      "binding_mismatch", "uptime_backwards", "agent_changed"):
+            with self.subTest(fault=fault):
+                self.exercise_normal_restart_fixture(fault)
+
+    def test_normal_restart_cli_stays_read_only_without_execute(self):
+        run = Mock()
+        run.preflight.return_value = {"mode": "preflight"}
+        argv = ["physical_auth_recovery.py", "--manifest", "/private/runtime.json",
+                "--device-state", "/private/health.json", "--nvs-values", "/private/identity.json",
+                "--stage", "normal-restart"]
+        with patch.object(auth.sys, "argv", argv), patch.object(auth, "Recovery", return_value=run), \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(auth.main(), 0)
+        self.assertTrue(json.loads(output.getvalue())["passed"])
+        run.preflight.assert_called_once_with()
+        run.execute.assert_not_called()
+        run.restore_only.assert_not_called()
+
+    def test_cli_execute_still_defaults_to_time_expiry(self):
+        with tempfile.TemporaryDirectory() as folder:
+            run = Mock()
+            run.home = Path(folder)
+            run.execute.return_value = {"mode": "execute", "passed": True}
+            argv = ["physical_auth_recovery.py", "--manifest", "/private/runtime.json",
+                    "--device-state", "/private/health.json", "--nvs-values", "/private/identity.json",
+                    "--execute"]
+            with patch.object(auth.sys, "argv", argv), patch.object(auth, "Recovery", return_value=run), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(auth.main(), 0)
+            run.execute.assert_called_once_with("time-expiry")
 
 
 if __name__ == "__main__":

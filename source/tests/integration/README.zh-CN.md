@@ -49,7 +49,7 @@ STT 使用与固件一致的 `/api/studio/voice/proxy/{profile}/v1/audio/transcr
 
 `physical_auth_recovery.py` 默认只预检：核对原版入口哈希、独立私有目录、PID、端口、原 JWT、机器身份与 M5 双通道及原生在线状态，不重启、不登录、不发模型或语音请求。生产端口 `8748` 被硬性拒绝。此入口只允许已审阅的独立 `19038` 实例，不能用于日常 Studio。所有 HTTP 均关闭环境代理、禁止跟随重定向；每次 GET 加随机 nonce 和禁缓存头，令牌只放请求头。传输层仅允许固定只读接口及测试器自己的 `/api/auth/login`，禁止测试器调用 `/api/auth/mcu-login`、配网、修改密码或设备设置。
 
-目前已完成审阅的是官方 npm `0.7.36`，SHA-256 `2698df3d144d32b435d8b700dc53c0b79879e9041faed557f883d7a9dac93f0a`，以及从官方 `0.8.24-arm64` DMG 取得的干净 App 入口 `c04bfec6333a0e70d763ba93ec2fff7bf3f7b6241b6b75c4d5c1d57a571084e0`。干净 App 完整严格签名校验通过，8107 个封装文件、16 个链接均匹配；实际提取的生产 JWT 函数通过 30 天默认值、45 秒配置、精确到期拒绝及错误签名拒绝检查，普通聊天鉴权使用同一校验链。注意：本机当前安装的同版服务器实际为 `09bbce3f6ea6c214b120f71f0a51a6acf79e8b38e0fb3cb062530b05d6331e5c`，与签名封装不匹配，仍明确拒绝用于官方原包验收。不能用忽略资源的代码签名通过代替服务文件的完整性校验。
+目前已完成审阅的是官方 npm `0.7.36`，SHA-256 `2698df3d144d32b435d8b700dc53c0b79879e9041faed557f883d7a9dac93f0a`，以及从官方 `0.8.24-arm64` DMG 取得的干净 App 入口 `c04bfec6333a0e70d763ba93ec2fff7bf3f7b6241b6b75c4d5c1d57a571084e0`。干净 App 完整严格签名校验通过，8107 个封装文件、16 个链接均匹配；实际提取的生产 JWT 函数通过 30 天默认值、45 秒配置、精确到期拒绝及错误签名拒绝检查，普通聊天鉴权使用同一校验链。测试初期发现同版安装曾为 `09bbce3f6ea6c214b120f71f0a51a6acf79e8b38e0fb3cb062530b05d6331e5c`，与签名封装不匹配，明确拒绝用于官方原包验收；此后已私有备份并恢复官方c04入口，8107个封装文件与16个链接逐项匹配。运行产生的6个额外Python缓存单列，不混称改动了官方核心。不能用忽略资源的代码签名通过代替服务文件的完整性校验。
 
 ```sh
 PYTHONDONTWRITEBYTECODE=1 python3 physical_auth_recovery.py \
@@ -65,6 +65,8 @@ PYTHONDONTWRITEBYTECODE=1 python3 physical_auth_recovery.py \
 2. 在 M5 恢复后签发并验证测试器的 45 秒时间见证 JWT；停止独立服务器，在停止状态等待至少 47 秒，保证设备无法在等待期间提前续期。单调时钟与墙钟都必须确认过期，时钟异常不能报成功。
 3. 使用完全相同的测试密钥、TTL、私有目录、工作区和机器身份重新启动独立服务器，强制新 TCP／namespace 握手；旧短 JWT 必须 `401`。等待 M5 自动续期恢复，要求双 namespace、持久绑定、同一 Agent、连续 uptime、原生 presence 与新服务器到 M5 的 TCP 全部匹配。每次重启都重新读取官方 `link-info` 的 `device_id / endpoint_kind / http_port`；变化立即拒绝归因。
 4. `finally` 恢复原默认签名环境和 30 天有效期，核对原 JWT 重新有效、持久 `.token` 未变、M5 再次恢复，并更新私有运行清单。恢复成功前整体测试不通过。历史的签名切换恢复单独用 `--execute --stage signature-rotation`，不能替代真实时间过期。
+
+普通重启另用相同私有参数加 `--execute --stage normal-restart`。此阶段保持原签名密钥、默认 TTL、私有目录、工作区和机器身份，原测试器 JWT 在重启后必须仍为 `200`；等待同一 M5 在新服务器进程上建立真实 TCP，恢复双 namespace、原生 presence、持久绑定，并核对 uptime 连续、Agent 不变。内部明确使用 `require_native=False`，报告 `recoveryEvidenceMode=connection-restoration-only`，不要求发生 MCU 登录，也不把恢复写成过期续期、取得新设备令牌或精确登录次数；登录次数为 `null`。成功须同时满足 `normalRestartStageExecuted` 和 `connectionRecoveryChecksPassed`，且 `finally` 的默认环境恢复与设备复核通过。它不设置短 TTL 或测试签名密钥，仍复用同一 journal／进程归属 guard 和收尾流程；执行默认阶段继续是 `time-expiry`，不带 `--execute` 仍仅预检。
 
 子进程显式回收，外部僵尸进程按已退出处理；停止前验证 PID、出生时间、精确 Node/入口、独立目录和端口，启动后还验证完整环境与所传环境一致。官方单次启动预算为 180 秒，等待 M5 恢复最多 180 秒。恢复正常环境先于审计断言；审计缺失不能阻止正常环境启动。中断后可使用相同参数加 `--restore-only` 从 0600 私有 journal 恢复；journal 包含环境和凭据，不能公开，也不能删除尚未恢复的 journal。
 
