@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "firmwareVersion": "cardputer-adv-v10.0.0-alpha.6",
+  "sourceSnapshotCommit": "a78fc66b7b57b06cd1de8dd990d633d0b497fda7",
+  "sourceTreeSha": "4da54dfc227eafa0031e00ed35a0e3c5387ff5fc",
+  "sourceArchiveMembersMatchCommittedBlobs": true,
+  "sourceArchiveRegularFiles": 1438,
+  "applicationBytes": 3321072,
+  "applicationSha256": "9208e53b8336523b50a3d49ce5a18f559f9aa79a885bef6df2deaf201c930230",
+  "espImageMagicVerified": true,
+  "esp32S3ChipIdVerified": true,
+  "applicationFitsExistingPartition": true,
+  "knownCurrentJwtValuesChecked": 2,
+  "knownValueMatches": 0,
+  "unexpectedPrivateOrRuntimeFiles": 0,
+  "limits": [
+    "仅对两份当前已知JWT做逐字节检查，不宣称覆盖所有可能的未知秘密。",
+    "完整模型/账号配置、NVS与原始日志未导入候选；生产差异只有指定提交和公开文档。",
+    "源包不包含固件或全量刷机镜像，归档源码与提交blob逐文件一致。"
+  ],
+  "scannedPrivateArtifactAndActiveWorktreePathMatches": 0
+}

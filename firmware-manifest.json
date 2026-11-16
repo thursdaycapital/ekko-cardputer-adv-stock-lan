@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
-  "releaseTag": "v10.0.0-alpha.5",
-  "firmwareVersion": "cardputer-adv-v10.0.0-alpha.5",
-  "releaseChannel": "development-preview",
-  "sourceCommit": "d087ae02d5c13ae0ac711a09415cfe8aa31ddcc4",
-  "createdAtUtc": "2026-11-15T16:39:43.068505+00:00",
+  "releaseTag": "v10.0.0-alpha.6",
+  "firmwareVersion": "cardputer-adv-v10.0.0-alpha.6",
+  "releaseChannel": "development-preview-candidate",
+  "sourceCommit": "a78fc66b7b57b06cd1de8dd990d633d0b497fda7",
+  "createdAtUtc": "2026-11-16T04:26:58.395601+00:00",
   "application": {
     "file": "firmware/ekko-cardputer-next-0x10000.bin",
-    "bytes": 3321056,
-    "sha256": "96e29f0aca8160e902f7cc56d8cac4446b435987b64fe0a800bc11f741d002c0",
+    "bytes": 3321072,
+    "sha256": "9208e53b8336523b50a3d49ce5a18f559f9aa79a885bef6df2deaf201c930230",
     "offset": "0x10000",
     "partitionBytes": 3342336,
-    "remainingPartitionBytes": 21280
+    "remainingPartitionBytes": 21264
   },
   "existingDualLayoutOnly": true,
   "factoryOffset": "0x340000",
@@ -22,20 +22,23 @@
   "computerPatchRequired": false,
   "compatibility": {
     "officialProtocolBaseline": "0.7.36",
-    "currentDesktopPristineVerified": false,
-    "agentCatalogCount": 16,
-    "v10PhysicalAcceptanceComplete": false,
     "currentRuntimeVersionObserved": "0.8.24",
-    "previousAlpha2CodexNativeTextAndVoiceConfirmed": true,
-    "historicalStudioHandshakeTested": "0.8.22",
-    "currentAlpha3CodexNativeReturnAndVoiceConfirmed": true,
-    "currentAlpha3WallStopAndSttObserved": true,
-    "currentAlpha3LatestPlaybackLogsCompleted": true,
-    "currentOfficialCoreSealedFilesVerified": true,
+    "agentCatalogCount": 16,
+    "officialCoreSealedFilesVerified": true,
+    "currentDesktopStrictResourceSignatureVerified": false,
     "desktopUiRoutesTested": 16,
     "desktopUiRoutesPassed": 14,
     "desktopUiRoutesFailed": 2,
-    "currentAlpha5PhysicalAcceptanceComplete": false
+    "desktopUiEvidenceIsHistoricalAndNotM5Physical": true,
+    "currentAlpha6PhysicalAcceptanceComplete": false,
+    "tokenTimeExpiryPhysicalRecovery": "passed",
+    "normalStudioRestartPhysicalRecovery": "passed",
+    "wifiSameEndpointRecovery": "pending",
+    "automaticStudioIpMigrationSupported": false,
+    "nativeDeviceDirectoryRegistration": "pending",
+    "managementNamespaceReadyAloneProvesRegistration": false,
+    "physicalAgentRoutes": "pending",
+    "currentAlpha6VoiceHistory": "pending"
   },
   "recording": {
     "storage": "ram_ima4",
@@ -47,7 +50,7 @@
     "maximumFrames": 80000,
     "drainLimitMs": 1000
   },
-  "verification": "evidence/v10-alpha5-20261116/verification.json",
+  "verification": "evidence/v10-alpha6-20261116/verification.json",
   "modelSelection": {
     "explicitModes": [
       "studio",
@@ -61,17 +64,33 @@
     "nativeDefaultCatalogAdvisory": true
   },
   "sourceArchive": {
-    "file": "cardputer-adv-source-v10.0.0-alpha.5-r2.tar.gz",
-    "bytes": 10157492,
-    "sha256": "a495bef8c1fa6394009610eb965dd9ba2f479b165ace238e3cfc2821bce7dfae",
-    "sourceCommit": "d087ae02d5c13ae0ac711a09415cfe8aa31ddcc4"
+    "file": "cardputer-adv-source-v10.0.0-alpha.6.tar.gz",
+    "bytes": 10104056,
+    "sha256": "dedf8d3dfb27b5c55ecfb2f8bdda018dbae2ae5e5f670fa7de810d08f81d72e0",
+    "sourceCommit": "a78fc66b7b57b06cd1de8dd990d633d0b497fda7",
+    "sourceTreeSha": "4da54dfc227eafa0031e00ed35a0e3c5387ff5fc",
+    "regularFiles": 1438,
+    "containsFirmware": false,
+    "contents": [
+      "source/",
+      "LICENSE",
+      "THIRD_PARTY_NOTICES.md",
+      "RELINK.md",
+      "SOURCE_VERSION.json"
+    ]
   },
   "releaseAssets": {
-    "application": "cardputer-adv-v10.0.0-alpha.5-update-0x10000.bin",
-    "source": "cardputer-adv-source-v10.0.0-alpha.5-r2.tar.gz"
+    "application": "cardputer-adv-v10.0.0-alpha.6-update-0x10000.bin",
+    "source": "cardputer-adv-source-v10.0.0-alpha.6.tar.gz",
+    "installationGuide": "INSTALL.zh-CN.md"
   },
-  "releasePage": "https://github.com/thursdaycapital/ekko-cardputer-adv-stock-lan/releases/tag/v10.0.0-alpha.5",
-  "acceptanceStatus": "physical-recovery-incomplete",
-  "sourceTreeSha": "b30da3a2c9b9e36ff211df487b2bd44dd550fa63",
-  "documentationRevision": 2
+  "acceptanceStatus": "partial-physical-recovery-verified-wifi-and-agent-matrix-pending",
+  "sourceTreeSha": "4da54dfc227eafa0031e00ed35a0e3c5387ff5fc",
+  "documentationRevision": 1,
+  "publicationStatus": "not-published-pending-root-acceptance",
+  "compiledSourceCommit": "dd499409d1c7c31c6079a1673a76a8966888c7b1",
+  "integrationOriginCommit": "3157c4b71a1fa92a6cb6afb6524bc862d5491840",
+  "artifactValidation": "evidence/v10-alpha6-20261116/artifact-validation.json",
+  "offlineValidation": "evidence/v10-alpha6-20261116/offline-validation.json",
+  "sourceCorrespondence": "evidence/v10-alpha6-20261116/source-correspondence.json"
 }

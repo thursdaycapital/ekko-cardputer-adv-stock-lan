@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "firmwareVersion": "cardputer-adv-v10.0.0-alpha.6",
+  "executionScope": "candidate public worktree; offline only",
+  "hostProgramsPassed": 34,
+  "recoverySafetyTestsPassed": 33,
+  "isolatedRuntimeTestsPassed": 2,
+  "dailyHelperTestsPassed": 30,
+  "uiNonAsciiCharacters": 392,
+  "missingLcdOrWebGlyphs": 0,
+  "noDeviceOrPaidRequests": true,
+  "dependencyHeaders": "read-only pinned active PlatformIO library headers; no dependency files changed",
+  "doesNotReplacePhysicalAcceptance": true
+}
