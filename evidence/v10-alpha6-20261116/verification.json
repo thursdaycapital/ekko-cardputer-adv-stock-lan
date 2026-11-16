@@ -43,7 +43,9 @@
   "publication": "not-published-pending-root-acceptance",
   "authRecoveryEvidence": "auth-recovery.json",
   "sourceTreeSha": "4da54dfc227eafa0031e00ed35a0e3c5387ff5fc",
-  "nativeDeviceDirectoryRegistration": "pending",
+  "nativeDeviceDirectoryRegistration": "passed",
   "managementNamespaceReadyAloneProvesRegistration": false,
-  "automaticStudioIpMigrationSupported": false
+  "automaticStudioIpMigrationSupported": false,
+  "nativeDeviceLanConnected": true,
+  "nativeDeviceDirectoryEvidence": "daily-native-presence.json"
 }

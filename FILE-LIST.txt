@@ -35,6 +35,7 @@ evidence/v10-alpha5-20261116/flash-verification.json
 evidence/v10-alpha5-20261116/verification.json
 evidence/v10-alpha6-20261116/artifact-validation.json
 evidence/v10-alpha6-20261116/auth-recovery.json
+evidence/v10-alpha6-20261116/daily-native-presence.json
 evidence/v10-alpha6-20261116/flash-verification.json
 evidence/v10-alpha6-20261116/offline-validation.json
 evidence/v10-alpha6-20261116/source-correspondence.json
